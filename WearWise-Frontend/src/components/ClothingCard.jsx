@@ -1,21 +1,35 @@
-export default function ClothingCard({ item }) {
+export default function ClothingCard({ item, onDelete, onEdit }) {
     return (
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition duration-300 group">
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition duration-300">
 
-            <div className="overflow-hidden">
-                <img
-                    src={item.image}
-                    className="h-64 w-full object-cover group-hover:scale-105 transition duration-300"
-                />
-            </div>
+            <img
+                src={item.imageUrl}
+                alt="clothing"
+                className="h-64 w-full object-cover"
+            />
 
-            <div className="p-4">
+            <div className="p-4 flex justify-between items-center">
 
-                <p className="font-semibold">{item.category}</p>
+                <div>
+                    <p className="font-semibold">{item.category}</p>
+                    <p className="text-sm text-gray-500">
+                        {item.color} • {item.season}
+                    </p>
+                </div>
 
-                <p className="text-sm text-gray-500">
-                    {item.color} • {item.season}
-                </p>
+                <button
+                    onClick={() => onEdit(item)}
+                    className="text-blue-500 hover:text-blue-700"
+                >
+                    Edit
+                </button>
+
+                <button
+                    onClick={() => onDelete(item.id)}
+                    className="text-red-500 hover:text-red-700"
+                >
+                    Delete
+                </button>
 
             </div>
 

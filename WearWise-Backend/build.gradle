@@ -19,9 +19,27 @@ repositories {
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// Spring Web (for REST APIs)
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+
+	// Spring Data JPA (for database persistence)
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+	// PostgreSQL Driver
+	runtimeOnly 'com.mysql:mysql-connector-j'
+
+	// Lombok (code generation for getters/setters etc.)
+	compileOnly 'org.projectlombok:lombok:1.18.30'
+	annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+	// Spring Boot DevTools (hot reload)
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+	// Validation (JSR-380 Bean Validation)
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Testing (optional, but usually included)
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 
 tasks.named('test') {
