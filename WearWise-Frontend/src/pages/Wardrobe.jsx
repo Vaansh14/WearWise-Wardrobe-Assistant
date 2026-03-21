@@ -3,7 +3,6 @@ import PageLayout from "../layouts/PageLayout";
 import ClothingCard from "../components/ClothingCard";
 import API from "../services/api";
 import { useEffect, useRef } from "react";
-import Masonry from "react-masonry-css";
 
 export default function Wardrobe() {
 
@@ -17,7 +16,8 @@ export default function Wardrobe() {
 
     const [image, setImage] = useState(null);
     const fileInputRef = useRef(null);
-    const [loading, setLoading] = useState(false);
+
+    const [mode, setMode] = useState("");
     const [editingItem, setEditingItem] = useState(null);
     const [error, setError] = useState("");
     const [filter, setFilter] = useState("All");
@@ -26,24 +26,43 @@ export default function Wardrobe() {
         fetchClothes();
     }, []);
 
-
-
     const fetchClothes = async () => {
-
         try {
-
-            const response = await API.get("/clothing");
-
+            const response = await API.get("/api/clothing");
             setClothes(response.data);
-
         } catch (error) {
             console.error("Error fetching clothes:", error);
         }
-
     };
 
-    const handleUpload = (e) => {
-        setImage(e.target.files[0]);
+    //  AI ANALYSIS
+    const handleUpload = async (e) => {
+
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setImage(file);
+        setMode("analyzing");
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            const response = await API.post("/api/clothing/analyze", formData);
+
+            const aiData = response.data;
+
+            setFormData({
+                category: aiData.category,
+                color: aiData.color,
+                season: aiData.season,
+            });
+
+        } catch (error) {
+            console.error("AI error:", error);
+        }
+
+        setMode("");
     };
 
     const handleChange = (e) => {
@@ -54,7 +73,6 @@ export default function Wardrobe() {
     };
 
     const handleEdit = (item) => {
-
         setEditingItem(item);
 
         setFormData({
@@ -63,79 +81,64 @@ export default function Wardrobe() {
             season: item.season
         });
 
+        setImage(null); // 🚨 important
+
         window.scrollTo({
             top: 0,
             behavior: "smooth"
         });
-
     };
 
+    //  SAVE / UPDATE
     const addClothing = async () => {
 
-        // clear previous error
-        setError("");
-
-        // validation
-        if (!formData.category || !formData.color || !formData.season) {
-            setError("Please fill all fields.");
-            return;
-        }
-
-        if (!editingItem && !image) {
-            setError("Please upload an image.");
-            return;
-        }
-
-        setLoading(true);
+        setMode("saving");
 
         try {
 
+            // 🔥 UPDATE MODE
             if (editingItem) {
 
-                const updatedItem = {
-                    ...editingItem,
-                    category: formData.category,
-                    color: formData.color,
-                    season: formData.season
-                };
-
-                await API.put(`/clothing/${editingItem.id}`, updatedItem);
-                setEditingItem(null);
+                await API.put(`/api/clothing/${editingItem.id}`, formData);
 
             } else {
 
+                if (!image) {
+                    setError("Please upload an image");
+                    setMode("");
+                    return;
+                }
+
                 const imageUrl = await uploadImage(image);
 
-                const newItem = {
-                    imageUrl,
-                    category: formData.category,
-                    color: formData.color,
-                    season: formData.season
-                };
+                const formDataToSend = new FormData();
+                formDataToSend.append("file", image);
+                formDataToSend.append("imageUrl", imageUrl);
 
-                await API.post("/clothing", newItem);
+                //  SEND USER VALUES (CRITICAL FIX)
+                formDataToSend.append("category", formData.category);
+                formDataToSend.append("color", formData.color);
+                formDataToSend.append("season", formData.season);
+
+                await API.post("/api/clothing/upload", formDataToSend);
             }
 
             fetchClothes();
 
+            // reset
             setImage(null);
-
-            setFormData({
-                category: "",
-                color: "",
-                season: ""
-            });
+            setEditingItem(null);
+            setFormData({ category: "", color: "", season: "" });
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
             }
 
         } catch (error) {
-            console.error("Upload error:", error);
-            setError("Something went wrong. Please try again.");
+            console.error(error);
         }
 
-        setLoading(false);
+        setMode("");
     };
 
     const uploadImage = async (file) => {
@@ -158,18 +161,12 @@ export default function Wardrobe() {
     };
 
     const deleteClothing = async (id) => {
-
         try {
-
-            await API.delete(`/clothing/${id}`);
-
-            // reload wardrobe from backend
+            await API.delete(`/api/clothing/${id}`);
             fetchClothes();
-
         } catch (error) {
             console.error("Delete error:", error);
         }
-
     };
 
     const filteredClothes =
@@ -180,11 +177,11 @@ export default function Wardrobe() {
     return (
         <PageLayout title="My Wardrobe">
 
-            {/* Upload Form */}
-
             <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-10">
 
-                <h2 className="font-semibold mb-4">Add Clothing</h2>
+                <h2 className="font-semibold mb-4">
+                    {editingItem ? "Edit Clothing" : "Add Clothing"}
+                </h2>
 
                 <div className="grid md:grid-cols-4 gap-4">
 
@@ -238,19 +235,19 @@ export default function Wardrobe() {
 
                 <button
                     onClick={addClothing}
-                    disabled={loading}
+                    disabled={mode !== ""}
                     className="mt-4 bg-black text-white px-6 py-2 rounded-xl hover:bg-gray-800 transition"
                 >
-                    {loading
-                        ? "Saving..."
-                        : editingItem
-                            ? "Update Item"
-                            : "Add Item"}
+                    {mode === "analyzing"
+                        ? "Analyzing with AI..."
+                        : mode === "saving"
+                            ? "Saving..."
+                            : editingItem
+                                ? "Update Item"
+                                : "Add Item"}
                 </button>
 
             </div>
-
-            {/* Empty State */}
 
             {clothes.length === 0 && (
                 <div className="text-center py-20 text-gray-400">
@@ -260,9 +257,7 @@ export default function Wardrobe() {
             )}
 
             <div className="flex gap-3 mb-6 flex-wrap">
-
                 {["All", "Shirt", "Pants", "Shoes", "Jacket"].map((type) => (
-
                     <button
                         key={type}
                         onClick={() => setFilter(type)}
@@ -273,12 +268,8 @@ export default function Wardrobe() {
                     >
                         {type}
                     </button>
-
                 ))}
-
             </div>
-
-            {/* Wardrobe Grid */}
 
             {clothes.length > 0 && (
                 <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

@@ -2,9 +2,16 @@ package com.example.wearwise.service;
 
 import com.example.wearwise.model.Clothing;
 import com.example.wearwise.repository.ClothingRepository;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.web.client.RestTemplate;
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 @Service
 public class ClothingService {
@@ -15,7 +22,8 @@ public class ClothingService {
         this.clothingRepository = clothingRepository;
     }
 
-    public Clothing saveClothing(Clothing clothing) {
+    //  NEW: Save directly (NO AI)
+    public Clothing saveClothingDirect(Clothing clothing) {
         return clothingRepository.save(clothing);
     }
 
@@ -35,5 +43,41 @@ public class ClothingService {
         existing.setSeason(clothing.getSeason());
 
         return clothingRepository.save(existing);
+    }
+
+    //  AI ONLY (no saving)
+    public Map<String, String> analyzeImage(byte[] fileBytes) {
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        String url = "http://localhost:8000/analyze";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+
+        body.add("file", new ByteArrayResource(fileBytes) {
+            @Override
+            public String getFilename() {
+                return "image.jpg";
+            }
+        });
+
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+            if (response.getBody() == null) {
+                throw new RuntimeException("AI returned null response");
+            }
+
+            return response.getBody();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Error calling AI service");
+        }
     }
 }
