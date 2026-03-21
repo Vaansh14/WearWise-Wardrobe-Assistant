@@ -5,6 +5,7 @@ import com.example.wearwise.repository.ClothingRepository;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -79,5 +80,24 @@ public class ClothingService {
             e.printStackTrace();
             throw new RuntimeException("Error calling AI service");
         }
+    }
+
+    public Map<String, Object> generateOutfit(List<Clothing> clothes) {
+
+        RestTemplate restTemplate = new RestTemplate();
+
+        String url = "http://localhost:8000/outfit";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("items", clothes);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+        return response.getBody();
     }
 }

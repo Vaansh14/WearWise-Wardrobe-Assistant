@@ -59,4 +59,10 @@ public class ClothingController {
     public Clothing updateClothing(@PathVariable Long id, @RequestBody Clothing clothing) {
         return clothingService.updateClothing(id, clothing);
     }
+
+    @PostMapping("/outfit")
+    public Map<String, Object> generateOutfit() {
+        List<Clothing> clothes = clothingService.getAllClothes();
+        return clothingService.generateOutfit(clothes);
+    }
 }
