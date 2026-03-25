@@ -26,6 +26,7 @@ public class ClothingController {
             @RequestParam("file") MultipartFile file,
             @RequestParam("imageUrl") String imageUrl,
             @RequestParam("category") String category,
+            @RequestParam("type") String type,
             @RequestParam("color") String color,
             @RequestParam("season") String season
     ) throws IOException {
@@ -34,6 +35,7 @@ public class ClothingController {
         clothing.setImageUrl(imageUrl);
         clothing.setCategory(category);
         clothing.setColor(color);
+        clothing.setType(type);
         clothing.setSeason(season);
 
         return clothingService.saveClothingDirect(clothing);

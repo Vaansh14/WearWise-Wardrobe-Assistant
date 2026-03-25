@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import PageLayout from "../layouts/PageLayout";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import API from "../services/api";
 
 export default function Outfits() {
@@ -11,9 +12,15 @@ export default function Outfits() {
     const [view, setView] = useState("generate");
     const [savedOutfits, setSavedOutfits] = useState([]);
 
-    const shirts = clothes.filter(c => c.category === "Shirt");
-    const pants = clothes.filter(c => c.category === "Pants");
-    const shoes = clothes.filter(c => c.category === "Shoes");
+    const [outfitName, setOutfitName] = useState("");
+
+    const [builder, setBuilder] = useState({
+        top: null,
+        bottom: null,
+        footwear: null,
+        outerwear: null,
+        accessory: null
+    });
 
     useEffect(() => {
         fetchClothes();
@@ -38,7 +45,32 @@ export default function Outfits() {
         }
     };
 
-    // 🎯 AI GENERATOR
+    // ================= DRAG =================
+    const handleDragEnd = (result) => {
+        if (!result.destination) return;
+
+        const sourceId = result.source.droppableId;
+        const destId = result.destination.droppableId;
+
+        if (sourceId === "wardrobe") {
+            const item = clothes.find(c => c.id === parseInt(result.draggableId));
+
+            setBuilder(prev => ({
+                ...prev,
+                [destId]: item
+            }));
+        } else {
+            setBuilder(prev => {
+                const updated = { ...prev };
+                const temp = updated[sourceId];
+                updated[sourceId] = updated[destId];
+                updated[destId] = temp;
+                return updated;
+            });
+        }
+    };
+
+    // ================= GENERATE =================
     const generateOutfit = async () => {
 
         if (!clothes.length) return;
@@ -49,18 +81,22 @@ export default function Outfits() {
             const res = await API.post("/api/clothing/outfit");
             const ai = res.data;
 
-            const shirt = clothes[ai.shirt];
-            const pant = clothes[ai.pants];
-            const shoe = clothes[ai.shoes];
+            const top = clothes[ai.top];
+            const bottom = clothes[ai.bottom];
+            const footwear = clothes[ai.footwear];
+            const outerwear = ai.outerwear !== null ? clothes[ai.outerwear] : null;
+            const accessory = ai.accessory !== null ? clothes[ai.accessory] : null;
 
-            if (!shirt || !pant || !shoe) {
+            if (!top || !bottom || !footwear) {
                 throw new Error("Invalid AI response");
             }
 
             setOutfit({
-                shirt,
-                pant,
-                shoe,
+                top,
+                bottom,
+                footwear,
+                outerwear,
+                accessory,
                 reason: ai.reason
             });
 
@@ -72,20 +108,54 @@ export default function Outfits() {
         setLoading(false);
     };
 
+    // ================= SAVE =================
     const saveOutfit = async () => {
-
-        if (!outfit) return;
-
         try {
+            let top, bottom, footwear, outerwear, accessory;
+
+            if (view === "generate") {
+                if (!outfit) return;
+
+                top = outfit.top;
+                bottom = outfit.bottom;
+                footwear = outfit.footwear;
+                outerwear = outfit.outerwear;
+                accessory = outfit.accessory;
+
+            } else {
+                if (!builder.top || !builder.bottom || !builder.footwear) {
+                    alert("Complete the outfit first!");
+                    return;
+                }
+
+                top = builder.top;
+                bottom = builder.bottom;
+                footwear = builder.footwear;
+                outerwear = builder.outerwear;
+                accessory = builder.accessory;
+            }
+
             await API.post("/api/outfits", {
-                shirtId: outfit.shirt.id,
-                pantsId: outfit.pant.id,
-                shoesId: outfit.shoe.id
+                topId: top.id,
+                bottomId: bottom.id,
+                footwearId: footwear.id,
+                outerwearId: outerwear?.id || null,
+                accessoryId: accessory?.id || null,
+                name: outfitName
             });
 
-            alert("Outfit saved! ");
+            alert("Outfit saved! ✅");
 
-            fetchSavedOutfits(); // 🔥 refresh list
+            setOutfitName("");
+            setBuilder({
+                top: null,
+                bottom: null,
+                footwear: null,
+                outerwear: null,
+                accessory: null
+            });
+
+            fetchSavedOutfits();
 
         } catch (err) {
             console.error(err);
@@ -95,127 +165,81 @@ export default function Outfits() {
     const deleteOutfit = async (id) => {
         try {
             await API.delete(`/api/outfits/${id}`);
-            fetchSavedOutfits(); // refresh
+            fetchSavedOutfits();
         } catch (err) {
             console.error(err);
         }
     };
 
-    const swapItem = (type, newItem) => {
-        setOutfit(prev => ({
-            ...prev,
-            [type]: newItem
-        }));
-    };
-
     return (
         <PageLayout title="Outfit Generator">
 
-            {/*  TOGGLE */}
+            {/* TOGGLE */}
             <div className="flex gap-4 mb-6 justify-center">
-
-                <button
-                    onClick={() => setView("generate")}
-                    className={`px-4 py-2 rounded-lg ${view === "generate" ? "bg-black text-white" : "bg-gray-100"
-                        }`}
-                >
+                <button onClick={() => setView("generate")} className={`px-4 py-2 rounded-lg ${view === "generate" ? "bg-black text-white" : "bg-gray-100"}`}>
                     Generate
                 </button>
 
-                <button
-                    onClick={() => setView("saved")}
-                    className={`px-4 py-2 rounded-lg ${view === "saved" ? "bg-black text-white" : "bg-gray-100"
-                        }`}
-                >
-                    Saved Outfits
+                <button onClick={() => setView("build")} className={`px-4 py-2 rounded-lg ${view === "build" ? "bg-black text-white" : "bg-gray-100"}`}>
+                    Build Outfit
                 </button>
 
+                <button onClick={() => setView("saved")} className={`px-4 py-2 rounded-lg ${view === "saved" ? "bg-black text-white" : "bg-gray-100"}`}>
+                    Saved
+                </button>
             </div>
 
-            {/* ================= GENERATE VIEW ================= */}
+            {/* ================= GENERATE ================= */}
             {view === "generate" && (
                 <>
                     <div className="flex justify-center mb-6">
                         <button
                             onClick={generateOutfit}
-                            className="bg-blue-500 text-white px-6 py-2 rounded-xl hover:bg-blue-600 transition"
+                            className="bg-blue-500 text-white px-6 py-2 rounded-xl"
                         >
                             {loading ? "Thinking..." : "Generate Smart Outfit ✨"}
                         </button>
                     </div>
 
-                    {!outfit && (
-                        <p className="text-center text-gray-400">
-                            Click to generate your outfit
-                        </p>
-                    )}
-
                     {outfit && (
-                        <div className="flex flex-col items-center gap-6">
+                        <div className="flex flex-col items-center gap-5">
 
-                            {/* SHIRT */}
-                            <div className="text-center">
-                                <img src={outfit.shirt.imageUrl} className="w-48 h-48 object-cover rounded-xl shadow" />
-                                <p className="mt-2 font-semibold">{outfit.shirt.category}</p>
+                            {outfit.outerwear && (
+                                <img src={outfit.outerwear.imageUrl} className="w-36 h-36 rounded-2xl shadow" />
+                            )}
 
-                                <div className="flex gap-2 mt-3 overflow-x-auto justify-center">
-                                    {shirts.map(item => (
-                                        <img
-                                            key={item.id}
-                                            src={item.imageUrl}
-                                            onClick={() => swapItem("shirt", item)}
-                                            className={`w-16 h-16 object-cover rounded-lg cursor-pointer border-2 ${outfit.shirt.id === item.id ? "border-black" : "border-transparent"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+                            <img src={outfit.top.imageUrl} className="w-44 h-44 rounded-2xl shadow" />
 
-                            {/* PANTS */}
-                            <div className="text-center">
-                                <img src={outfit.pant.imageUrl} className="w-48 h-48 object-cover rounded-xl shadow" />
-                                <p className="mt-2 font-semibold">{outfit.pant.category}</p>
+                            <img src={outfit.bottom.imageUrl} className="w-44 h-44 rounded-2xl shadow" />
 
-                                <div className="flex gap-2 mt-3 overflow-x-auto justify-center">
-                                    {pants.map(item => (
-                                        <img
-                                            key={item.id}
-                                            src={item.imageUrl}
-                                            onClick={() => swapItem("pant", item)}
-                                            className={`w-16 h-16 object-cover rounded-lg cursor-pointer border-2 ${outfit.pant.id === item.id ? "border-black" : "border-transparent"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+                            <img src={outfit.footwear.imageUrl} className="w-40 h-40 rounded-2xl shadow" />
 
-                            {/* SHOES */}
-                            <div className="text-center">
-                                <img src={outfit.shoe.imageUrl} className="w-48 h-48 object-cover rounded-xl shadow" />
-                                <p className="mt-2 font-semibold">{outfit.shoe.category}</p>
+                            {outfit.accessory && (
+                                <img src={outfit.accessory.imageUrl} className="w-24 h-24 rounded-xl shadow" />
+                            )}
 
-                                <div className="flex gap-2 mt-3 overflow-x-auto justify-center">
-                                    {shoes.map(item => (
-                                        <img
-                                            key={item.id}
-                                            src={item.imageUrl}
-                                            onClick={() => swapItem("shoe", item)}
-                                            className={`w-16 h-16 object-cover rounded-lg cursor-pointer border-2 ${outfit.shoe.id === item.id ? "border-black" : "border-transparent"
-                                                }`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
+                            <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 px-5 py-4 rounded-2xl shadow-sm max-w-md text-center">
 
-                            {outfit.reason && (
-                                <p className="mt-4 text-center text-gray-600 italic max-w-md">
+                                <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">
+                                    AI Stylist Insight
+                                </p>
+
+                                <p className="text-gray-800 text-sm leading-relaxed font-medium">
                                     {outfit.reason}
                                 </p>
-                            )}
+
+                            </div>
+
+                            <input
+                                placeholder="Outfit name"
+                                value={outfitName}
+                                onChange={(e) => setOutfitName(e.target.value)}
+                                className="border p-2 rounded-lg text-center"
+                            />
 
                             <button
                                 onClick={saveOutfit}
-                                className="mt-6 bg-green-500 text-white px-6 py-2 rounded-xl hover:bg-green-600 transition"
+                                className="bg-green-500 text-white px-6 py-2 rounded-xl"
                             >
                                 Save Outfit 💾
                             </button>
@@ -225,62 +249,121 @@ export default function Outfits() {
                 </>
             )}
 
-            {/* ================= SAVED VIEW ================= */}
+            {/* ================= BUILD ================= */}
+            {view === "build" && (
+                <DragDropContext onDragEnd={handleDragEnd}>
+
+                    <div className="flex gap-16 justify-center items-start">
+
+                        {/* LEFT */}
+                        <Droppable droppableId="wardrobe" isDropDisabled={true}>
+                            {(provided) => (
+                                <div ref={provided.innerRef} {...provided.droppableProps}
+                                    className="grid grid-cols-3 gap-4 max-w-sm">
+
+                                    {clothes.map((item, index) => (
+                                        <Draggable key={item.id} draggableId={String(item.id)} index={index}>
+                                            {(provided) => (
+                                                <img
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    src={item.imageUrl}
+                                                    className="w-20 h-20 object-cover rounded-xl cursor-grab"
+                                                />
+                                            )}
+                                        </Draggable>
+                                    ))}
+
+                                    {provided.placeholder}
+                                </div>
+                            )}
+                        </Droppable>
+
+                        {/* RIGHT */}
+                        <div className="flex flex-col items-center gap-6">
+
+                            {[
+                                { key: "outerwear", label: "Outerwear" },
+                                { key: "top", label: "Top" },
+                                { key: "bottom", label: "Bottom" },
+                                { key: "footwear", label: "Footwear" },
+                                { key: "accessory", label: "Accessory" }
+                            ].map(({ key, label }) => (
+
+                                <Droppable droppableId={key} key={key}>
+                                    {(provided) => (
+                                        <div
+                                            ref={provided.innerRef}
+                                            {...provided.droppableProps}
+                                            className="w-44 h-44 border-2 border-dashed rounded-2xl flex items-center justify-center"
+                                        >
+                                            {builder[key] ? (
+                                                <img
+                                                    src={builder[key].imageUrl}
+                                                    className="w-full h-full object-cover rounded-2xl"
+                                                />
+                                            ) : (
+                                                <p className="text-gray-400">{label}</p>
+                                            )}
+                                            {provided.placeholder}
+                                        </div>
+                                    )}
+                                </Droppable>
+                            ))}
+
+                        </div>
+
+                    </div>
+
+                    <div className="flex flex-col items-center mt-10 gap-4">
+                        <input
+                            placeholder="Outfit name"
+                            value={outfitName}
+                            onChange={(e) => setOutfitName(e.target.value)}
+                        />
+
+                        <button onClick={saveOutfit} className="bg-green-500 text-white px-6 py-2 rounded-xl">
+                            Save Outfit 💾
+                        </button>
+                    </div>
+
+                </DragDropContext>
+            )}
+
+            {/* ================= SAVED ================= */}
             {view === "saved" && (
-
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                    {savedOutfits.length === 0 && (
-                        <p className="text-center text-gray-400 col-span-3">
-                            No saved outfits yet
-                        </p>
-                    )}
 
                     {savedOutfits.map(outfit => {
 
-                        const shirt = clothes.find(c => c.id === outfit.shirtId);
-                        const pant = clothes.find(c => c.id === outfit.pantsId);
-                        const shoe = clothes.find(c => c.id === outfit.shoesId);
+                        const top = clothes.find(c => c.id === outfit.topId);
+                        const bottom = clothes.find(c => c.id === outfit.bottomId);
+                        const footwear = clothes.find(c => c.id === outfit.footwearId);
+                        const outerwear = clothes.find(c => c.id === outfit.outerwearId);
+                        const accessory = clothes.find(c => c.id === outfit.accessoryId);
 
-                        if (!shirt || !pant || !shoe) return null;
+                        if (!top || !bottom || !footwear) return null;
 
                         return (
-                            <div key={outfit.id} className="bg-white p-5 rounded-2xl shadow hover:shadow-lg transition">
+                            <div key={outfit.id} className="bg-white p-5 rounded-2xl shadow flex flex-col items-center">
 
-                                {/* DELETE */}
-                                <div className="flex justify-end">
-                                    <button
-                                        onClick={() => deleteOutfit(outfit.id)}
-                                        className="text-red-500 text-sm hover:text-red-700"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
+                                {outerwear && <img src={outerwear.imageUrl} className="w-20 h-20 rounded-xl" />}
+                                <img src={top.imageUrl} className="w-24 h-24 rounded-xl" />
+                                <img src={bottom.imageUrl} className="w-24 h-24 rounded-xl" />
+                                <img src={footwear.imageUrl} className="w-24 h-24 rounded-xl" />
+                                {accessory && <img src={accessory.imageUrl} className="w-16 h-16 rounded-lg" />}
 
-                                {/* 🔥 OUTFIT STACK */}
-                                <div className="flex flex-col items-center gap-4 mt-2">
-
-                                    <img
-                                        src={shirt.imageUrl}
-                                        className="w-28 h-28 object-cover rounded-xl"
-                                    />
-
-                                    <img
-                                        src={pant.imageUrl}
-                                        className="w-28 h-28 object-cover rounded-xl"
-                                    />
-
-                                    <img
-                                        src={shoe.imageUrl}
-                                        className="w-28 h-28 object-cover rounded-xl"
-                                    />
-
-                                </div>
-
-                                {/* LABEL */}
-                                <p className="text-center text-sm text-gray-500 mt-4">
-                                    Outfit #{outfit.id}
+                                <p className="mt-3 font-semibold">
+                                    {outfit.name || `Outfit #${outfit.id}`}
                                 </p>
+
+                                <button
+                                    onClick={() => deleteOutfit(outfit.id)}
+                                    className="mt-3 text-red-500"
+                                >
+                                    Delete
+                                </button>
 
                             </div>
                         );

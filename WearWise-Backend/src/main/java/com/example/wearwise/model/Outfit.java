@@ -9,41 +9,36 @@ public class Outfit {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long shirtId;
-    private Long pantsId;
-    private Long shoesId;
+    private Long topId;
+    private Long bottomId;
+    private Long footwearId;
+
+    private Long outerwearId;   // optional
+    private Long accessoryId;   // optional
+
+    private String name;
 
     public Outfit() {}
 
-    public Long getId() {
-        return id;
-    }
+    // ===== GETTERS =====
+    public Long getId() { return id; }
 
-    public Long getShirtId() {
-        return shirtId;
-    }
+    public Long getTopId() { return topId; }
+    public Long getBottomId() { return bottomId; }
+    public Long getFootwearId() { return footwearId; }
+    public Long getOuterwearId() { return outerwearId; }
+    public Long getAccessoryId() { return accessoryId; }
 
-    public Long getPantsId() {
-        return pantsId;
-    }
+    public String getName() { return name; }
 
-    public Long getShoesId() {
-        return shoesId;
-    }
+    // ===== SETTERS =====
+    public void setId(Long id) { this.id = id; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public void setTopId(Long topId) { this.topId = topId; }
+    public void setBottomId(Long bottomId) { this.bottomId = bottomId; }
+    public void setFootwearId(Long footwearId) { this.footwearId = footwearId; }
+    public void setOuterwearId(Long outerwearId) { this.outerwearId = outerwearId; }
+    public void setAccessoryId(Long accessoryId) { this.accessoryId = accessoryId; }
 
-    public void setShirtId(Long shirtId) {
-        this.shirtId = shirtId;
-    }
-
-    public void setPantsId(Long pantsId) {
-        this.pantsId = pantsId;
-    }
-
-    public void setShoesId(Long shoesId) {
-        this.shoesId = shoesId;
-    }
+    public void setName(String name) { this.name = name; }
 }

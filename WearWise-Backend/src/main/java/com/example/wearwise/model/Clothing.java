@@ -12,7 +12,10 @@ public class Clothing {
 
     private String imageUrl;
 
-    private String category;
+    private String category;  // Top, Bottom, Footwear, Outerwear, Accessory
+    private String type;      // T-shirt, Hoodie, Jeans, Skirt, Heels
+    private String gender;    // Male, Female, Unisex
+    private String occasion;  // Casual, Formal, Gym, Party
 
     private String color;
 
@@ -40,6 +43,10 @@ public class Clothing {
         return season;
     }
 
+    public String getType() {
+        return type;
+    }
+
     public void setId(Long id) {
         this.id = id;
     }
@@ -58,5 +65,9 @@ public class Clothing {
 
     public void setSeason(String season) {
         this.season = season;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

@@ -18,29 +18,29 @@ model = "gemini-2.5-flash"
 async def analyze_clothing(file: UploadFile = File(...)):
 
     contents = await file.read()
-
     image = Image.open(io.BytesIO(contents))
 
     prompt = """
-    You are a fashion AI.
+You are a fashion AI.
 
-    Analyze the clothing item in the image.
+Analyze the clothing item in the image.
 
-    Return ONLY valid JSON in this format:
+STRICT RULES:
+- Return ONLY valid JSON
+- DO NOT include explanations
+- DO NOT include markdown
+- ALWAYS include ALL fields
 
-    {
-     "category": "Shirt | Pants | Shoes | Jacket | Other",
-     "color": "main visible color",
-     "season": "Summer | Winter | All Season"
-    }
-
-    Rules:
-    - Choose ONLY one category.
-    - Use simple color names like Black, Blue, White, Red.
-    - Do NOT return explanations.
-    - Do NOT return markdown.
-    - Return ONLY JSON.
-    """
+JSON FORMAT:
+{
+  "category": "Top | Bottom | Footwear | Outerwear | Accessory",
+  "type": "e.g. hoodie, jeans, skirt, heels",
+  "color": "single simple color",
+  "season": "Summer | Winter | All Season",
+  "gender": "Male | Female | Unisex",
+  "occasion": "Casual | Formal | Gym | Party"
+}
+"""
 
     response = client.models.generate_content(
         model=model,
@@ -49,13 +49,23 @@ async def analyze_clothing(file: UploadFile = File(...)):
 
     text = response.text.strip()
 
+    #  CLEAN RESPONSE (VERY IMPORTANT)
     try:
         data = json.loads(text)
     except:
         start = text.find("{")
         end = text.rfind("}") + 1
         data = json.loads(text[start:end])
-    return data
+
+    #  FORCE DEFAULTS (PREVENT FRONTEND BREAK)
+    return {
+        "category": data.get("category", ""),
+        "type": data.get("type", ""),
+        "color": data.get("color", ""),
+        "season": data.get("season", ""),
+        "gender": data.get("gender", ""),
+        "occasion": data.get("occasion", "")
+    }
 
 
 
@@ -65,20 +75,38 @@ async def generate_outfit(data: dict = Body(...)):
     items = data.get("items", [])
 
     prompt = f"""
-    You are a fashion stylist AI.
+    You are a professional fashion stylist.
 
-    Based on this wardrobe:
-
+    User wardrobe:
     {items}
 
-    Pick the BEST outfit combination.
+    Task:
+    - Choose the BEST possible outfit combination.
+
+    Rules:
+    - Pick 1 Top (category = Top)
+    - Pick 1 Bottom (category = Bottom)
+    - Pick 1 Footwear (category = Footwear)
+    - Optionally pick:
+      - Outerwear
+      - Accessory
+
+    - Only choose items from correct categories
+    - Return Indexes from the list
+    - Prioritize color coordination, style compatibility, and season
+
+    IMPORTANT:
+    - You MUST include "reason"
+    - Keep reason to 1–2 short sentences (max 25 words)
+    - Do NOT skip any field
 
     Return ONLY JSON:
-
     {{
-      "shirt": <index>,
-      "pants": <index>,
-      "shoes": <index>,
+      "top": number,
+      "bottom": number,
+      "footwear": number,
+      "outerwear": number or null,
+      "accessory": number or null,
       "reason": "short explanation"
     }}
     """
@@ -89,6 +117,7 @@ async def generate_outfit(data: dict = Body(...)):
     )
 
     text = response.text.strip()
+    print("AI RAW:", text)
 
     try:
         return json.loads(text)

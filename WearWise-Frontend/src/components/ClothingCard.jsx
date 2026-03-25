@@ -1,38 +1,71 @@
 export default function ClothingCard({ item, onDelete, onEdit }) {
     return (
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-lg transition duration-300">
+        <div className="group relative bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-xl transition duration-300">
 
-            <img
-                src={item.imageUrl}
-                alt="clothing"
-                className="h-64 w-full object-cover"
-            />
+            {/* IMAGE */}
+            <div className="relative">
+                <img
+                    src={item.imageUrl || "https://via.placeholder.com/300"}
+                    alt="clothing"
+                    className="h-64 w-full object-cover transition duration-300 group-hover:scale-105"
+                />
 
-            <div className="p-4 flex justify-between items-center">
+                {/* 🔥 HOVER OVERLAY */}
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
 
-                <div>
-                    <p className="font-semibold">{item.category}</p>
-                    <p className="text-sm text-gray-500">
-                        {item.color} • {item.season}
-                    </p>
+                    <button
+                        onClick={() => onEdit(item)}
+                        className="bg-white px-4 py-2 rounded-full text-sm font-medium hover:scale-105 transition"
+                    >
+                        Edit
+                    </button>
+
+                    <button
+                        onClick={() => onDelete(item.id)}
+                        className="bg-red-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:scale-105 transition"
+                    >
+                        Delete
+                    </button>
+
                 </div>
-
-                <button
-                    onClick={() => onEdit(item)}
-                    className="text-blue-500 hover:text-blue-700"
-                >
-                    Edit
-                </button>
-
-                <button
-                    onClick={() => onDelete(item.id)}
-                    className="text-red-500 hover:text-red-700"
-                >
-                    Delete
-                </button>
-
             </div>
 
+            {/* CONTENT */}
+            <div className="p-4">
+
+                {/* TITLE */}
+                <p className="font-semibold text-lg truncate">
+                    {item.type || item.category}
+                </p>
+
+                {/* CATEGORY TAG */}
+                <p className="text-xs text-gray-400 uppercase tracking-wide">
+                    {item.category}
+                </p>
+
+                {/* DETAILS */}
+                <p className="text-sm text-gray-600 mt-1 truncate">
+                    {item.color} • {item.season}
+                </p>
+
+                {/* EXTRA TAGS */}
+                <div className="flex gap-2 mt-2 flex-wrap">
+
+                    {item.gender && (
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded-full">
+                            {item.gender}
+                        </span>
+                    )}
+
+                    {item.occasion && (
+                        <span className="text-xs bg-black text-white px-2 py-1 rounded-full">
+                            {item.occasion}
+                        </span>
+                    )}
+
+                </div>
+
+            </div>
         </div>
     );
 }

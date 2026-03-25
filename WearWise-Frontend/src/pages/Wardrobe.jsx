@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import PageLayout from "../layouts/PageLayout";
 import ClothingCard from "../components/ClothingCard";
 import API from "../services/api";
-import { useEffect, useRef } from "react";
 
 export default function Wardrobe() {
 
@@ -10,8 +9,11 @@ export default function Wardrobe() {
 
     const [formData, setFormData] = useState({
         category: "",
+        type: "",
         color: "",
         season: "",
+        gender: "",
+        occasion: ""
     });
 
     const [image, setImage] = useState(null);
@@ -35,7 +37,7 @@ export default function Wardrobe() {
         }
     };
 
-    //  AI ANALYSIS
+    // 🔥 AI ANALYSIS (UPDATED)
     const handleUpload = async (e) => {
 
         const file = e.target.files[0];
@@ -45,17 +47,19 @@ export default function Wardrobe() {
         setMode("analyzing");
 
         try {
-            const formData = new FormData();
-            formData.append("file", file);
+            const data = new FormData();
+            data.append("file", file);
 
-            const response = await API.post("/api/clothing/analyze", formData);
-
-            const aiData = response.data;
+            const response = await API.post("/api/clothing/analyze", data);
+            const ai = response.data;
 
             setFormData({
-                category: aiData.category,
-                color: aiData.color,
-                season: aiData.season,
+                category: ai.category || "",
+                type: ai.type || "",
+                color: ai.color || "",
+                season: ai.season || "",
+                gender: ai.gender || "",
+                occasion: ai.occasion || ""
             });
 
         } catch (error) {
@@ -76,12 +80,15 @@ export default function Wardrobe() {
         setEditingItem(item);
 
         setFormData({
-            category: item.category,
-            color: item.color,
-            season: item.season
+            category: item.category || "",
+            type: item.type || "",
+            color: item.color || "",
+            season: item.season || "",
+            gender: item.gender || "",
+            occasion: item.occasion || ""
         });
 
-        setImage(null); // 🚨 important
+        setImage(null);
 
         window.scrollTo({
             top: 0,
@@ -89,14 +96,13 @@ export default function Wardrobe() {
         });
     };
 
-    //  SAVE / UPDATE
+    // 🔥 SAVE / UPDATE
     const addClothing = async () => {
 
         setMode("saving");
 
         try {
 
-            // 🔥 UPDATE MODE
             if (editingItem) {
 
                 await API.put(`/api/clothing/${editingItem.id}`, formData);
@@ -111,24 +117,30 @@ export default function Wardrobe() {
 
                 const imageUrl = await uploadImage(image);
 
-                const formDataToSend = new FormData();
-                formDataToSend.append("file", image);
-                formDataToSend.append("imageUrl", imageUrl);
+                const data = new FormData();
+                data.append("file", image);
+                data.append("imageUrl", imageUrl);
 
-                //  SEND USER VALUES (CRITICAL FIX)
-                formDataToSend.append("category", formData.category);
-                formDataToSend.append("color", formData.color);
-                formDataToSend.append("season", formData.season);
+                // 🔥 NEW FIELDS
+                Object.keys(formData).forEach(key => {
+                    data.append(key, formData[key]);
+                });
 
-                await API.post("/api/clothing/upload", formDataToSend);
+                await API.post("/api/clothing/upload", data);
             }
 
             fetchClothes();
 
-            // reset
             setImage(null);
             setEditingItem(null);
-            setFormData({ category: "", color: "", season: "" });
+            setFormData({
+                category: "",
+                type: "",
+                color: "",
+                season: "",
+                gender: "",
+                occasion: ""
+            });
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = "";
@@ -156,7 +168,6 @@ export default function Wardrobe() {
         );
 
         const result = await response.json();
-
         return result.secure_url;
     };
 
@@ -177,112 +188,94 @@ export default function Wardrobe() {
     return (
         <PageLayout title="My Wardrobe">
 
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-10">
+            {/* FORM */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border mb-10">
 
                 <h2 className="font-semibold mb-4">
                     {editingItem ? "Edit Clothing" : "Add Clothing"}
                 </h2>
 
-                <div className="grid md:grid-cols-4 gap-4">
+                <div className="grid md:grid-cols-3 gap-4">
 
-                    <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleUpload}
-                        className="border p-2 rounded-lg"
-                    />
+                    <input type="file" ref={fileInputRef} onChange={handleUpload} className="border p-2 rounded-lg" />
 
-                    <select
-                        name="category"
-                        value={formData.category}
-                        onChange={handleChange}
-                        className="border p-2 rounded-lg"
-                    >
+                    {/* CATEGORY */}
+                    <select name="category" value={formData.category} onChange={handleChange} className="border p-2 rounded-lg">
                         <option value="">Category</option>
-                        <option>Shirt</option>
-                        <option>Pants</option>
-                        <option>Shoes</option>
-                        <option>Jacket</option>
+                        <option>Top</option>
+                        <option>Bottom</option>
+                        <option>Footwear</option>
+                        <option>Outerwear</option>
+                        <option>Accessory</option>
                     </select>
 
-                    <input
-                        name="color"
-                        placeholder="Color"
-                        value={formData.color}
-                        onChange={handleChange}
-                        className="border p-2 rounded-lg"
-                    />
+                    {/* TYPE */}
+                    <input name="type" placeholder="Type (e.g. Hoodie, Skirt)" value={formData.type} onChange={handleChange} className="border p-2 rounded-lg" />
 
-                    <select
-                        name="season"
-                        value={formData.season}
-                        onChange={handleChange}
-                        className="border p-2 rounded-lg"
-                    >
+                    <input name="color" placeholder="Color" value={formData.color} onChange={handleChange} className="border p-2 rounded-lg" />
+
+                    <select name="season" value={formData.season} onChange={handleChange} className="border p-2 rounded-lg">
                         <option value="">Season</option>
                         <option>Summer</option>
                         <option>Winter</option>
                         <option>All Season</option>
                     </select>
 
+                    <select name="gender" value={formData.gender} onChange={handleChange} className="border p-2 rounded-lg">
+                        <option value="">Gender</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Unisex</option>
+                    </select>
+
+                    <select name="occasion" value={formData.occasion} onChange={handleChange} className="border p-2 rounded-lg">
+                        <option value="">Occasion</option>
+                        <option>Casual</option>
+                        <option>Formal</option>
+                        <option>Gym</option>
+                        <option>Party</option>
+                    </select>
+
                 </div>
 
-                {error && (
-                    <p className="text-red-500 text-sm mt-3">
-                        {error}
-                    </p>
-                )}
+                {error && <p className="text-red-500 mt-3">{error}</p>}
 
                 <button
                     onClick={addClothing}
                     disabled={mode !== ""}
-                    className="mt-4 bg-black text-white px-6 py-2 rounded-xl hover:bg-gray-800 transition"
+                    className="mt-4 bg-black text-white px-6 py-2 rounded-xl"
                 >
-                    {mode === "analyzing"
-                        ? "Analyzing with AI..."
-                        : mode === "saving"
-                            ? "Saving..."
-                            : editingItem
-                                ? "Update Item"
-                                : "Add Item"}
+                    {mode === "analyzing" ? "Analyzing..." :
+                        mode === "saving" ? "Saving..." :
+                            editingItem ? "Update Item" : "Add Item"}
                 </button>
 
             </div>
 
-            {clothes.length === 0 && (
-                <div className="text-center py-20 text-gray-400">
-                    <p className="text-lg">Your wardrobe is empty</p>
-                    <p className="text-sm">Add your first clothing item</p>
-                </div>
-            )}
-
+            {/* FILTER */}
             <div className="flex gap-3 mb-6 flex-wrap">
-                {["All", "Shirt", "Pants", "Shoes", "Jacket"].map((type) => (
+                {["All", "Top", "Bottom", "Footwear", "Outerwear", "Accessory"].map((type) => (
                     <button
                         key={type}
                         onClick={() => setFilter(type)}
-                        className={`px-4 py-2 rounded-lg border transition ${filter === type
-                            ? "bg-black text-white"
-                            : "bg-white hover:bg-gray-100"
-                            }`}
+                        className={`px-4 py-2 rounded-lg border ${filter === type ? "bg-black text-white" : ""}`}
                     >
                         {type}
                     </button>
                 ))}
             </div>
 
-            {clothes.length > 0 && (
-                <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {filteredClothes.map((item) => (
-                        <ClothingCard
-                            key={item.id}
-                            item={item}
-                            onDelete={deleteClothing}
-                            onEdit={handleEdit}
-                        />
-                    ))}
-                </div>
-            )}
+            {/* GRID */}
+            <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredClothes.map((item) => (
+                    <ClothingCard
+                        key={item.id}
+                        item={item}
+                        onDelete={deleteClothing}
+                        onEdit={handleEdit}
+                    />
+                ))}
+            </div>
 
         </PageLayout>
     );
