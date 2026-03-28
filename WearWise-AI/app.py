@@ -1,10 +1,14 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Body
 from fastapi import Body
 from google import genai
 from PIL import Image
 import io
 import json
 import os
+
+
+
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = FastAPI()
 
@@ -16,7 +20,6 @@ model = "gemini-2.5-flash"
 
 @app.post("/analyze")
 async def analyze_clothing(file: UploadFile = File(...)):
-
     contents = await file.read()
     image = Image.open(io.BytesIO(contents))
 
@@ -68,17 +71,19 @@ JSON FORMAT:
     }
 
 
-
 @app.post("/outfit")
 async def generate_outfit(data: dict = Body(...)):
-
     items = data.get("items", [])
-
+    temperature = data.get("temperature")
+    occasion = data.get("occasion")
     prompt = f"""
     You are a professional fashion stylist.
 
     User wardrobe:
     {items}
+
+    Temperature: {temperature}
+O   ccasion: {occasion}
 
     Task:
     - Choose the BEST possible outfit combination.
@@ -109,6 +114,8 @@ async def generate_outfit(data: dict = Body(...)):
       "accessory": number or null,
       "reason": "short explanation"
     }}
+
+    Include temperature reasoning in explanation
     """
 
     response = client.models.generate_content(

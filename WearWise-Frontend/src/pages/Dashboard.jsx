@@ -1,30 +1,280 @@
+import { useEffect, useState, useRef } from "react";
 import PageLayout from "../layouts/PageLayout";
+import API from "../services/api";
 
 export default function Dashboard() {
+
+    const [clothes, setClothes] = useState([]);
+    const [outfit, setOutfit] = useState(null);
+    const [weather, setWeather] = useState(null);
+    const [events, setEvents] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    const hasGenerated = useRef(false);
+
+    // ================= FETCH CLOTHES =================
+    const fetchClothes = async () => {
+        try {
+            const res = await API.get("/api/clothing");
+            setClothes(res.data);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    // ================= FETCH WEATHER =================
+    const fetchWeather = async () => {
+        try {
+            const position = await new Promise((resolve, reject) =>
+                navigator.geolocation.getCurrentPosition(resolve, reject)
+            );
+
+            const { latitude, longitude } = position.coords;
+
+            const res = await fetch(
+                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`
+            );
+
+            const data = await res.json();
+            setWeather(data.current_weather);
+
+        } catch (err) {
+            console.error("Weather error:", err);
+        }
+    };
+
+    // ================= GOOGLE CALENDAR =================
+    const initGoogleCalendar = async () => {
+        try {
+            const tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: "766920400079-abetaslvqkdf27o0tdo45j0vv2snlsfe.apps.googleusercontent.com",
+                scope: "https://www.googleapis.com/auth/calendar.readonly",
+                callback: async (tokenResponse) => {
+
+                    const res = await fetch(
+                        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                        {
+                            headers: {
+                                Authorization: `Bearer ${tokenResponse.access_token}`
+                            }
+                        }
+                    );
+
+                    const data = await res.json();
+
+                    const now = new Date();
+
+                    // ✅ FILTER UPCOMING ONLY
+                    const upcoming = (data.items || []).filter(event => {
+                        const eventTime = new Date(
+                            event.start?.dateTime || event.start?.date
+                        );
+                        return eventTime >= now;
+                    });
+
+                    // ✅ SORT BY TIME (nearest first)
+                    upcoming.sort((a, b) => {
+                        const aTime = new Date(a.start?.dateTime || a.start?.date);
+                        const bTime = new Date(b.start?.dateTime || b.start?.date);
+                        return aTime - bTime;
+                    });
+
+                    setEvents(upcoming);
+
+                }
+            });
+
+            tokenClient.requestAccessToken();
+
+        } catch (err) {
+            console.error("GOOGLE ERROR:", err);
+        }
+    };
+
+    // ================= EVENT → OCCASION =================
+    const getOccasionFromEvent = (name) => {
+        const text = name.toLowerCase();
+
+        if (text.includes("gym")) return "Gym";
+        if (text.includes("meeting") || text.includes("lecture")) return "Formal";
+        if (text.includes("party") || text.includes("dinner")) return "Party";
+
+        return "Casual";
+    };
+
+    // ================= FETCH OUTFIT =================
+    const fetchOutfit = async () => {
+
+        if (!clothes.length || !weather || loading) return;
+
+        const firstEvent = events[0];
+
+        const occasion = firstEvent
+            ? getOccasionFromEvent(firstEvent.summary)
+            : "Casual";
+
+        setLoading(true);
+
+        try {
+            const res = await API.post("/api/outfits/generate", {
+                temperature: weather.temperature,
+                windspeed: weather.windspeed,
+                occasion
+            });
+
+            const ai = res.data;
+
+            const mapped = {
+                top: clothes[ai.top],
+                bottom: clothes[ai.bottom],
+                footwear: clothes[ai.footwear],
+                outerwear: ai.outerwear !== null ? clothes[ai.outerwear] : null,
+                accessory: ai.accessory !== null ? clothes[ai.accessory] : null,
+                reason: ai.reason
+            };
+
+            setOutfit(mapped);
+
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ================= INIT =================
+    useEffect(() => {
+        fetchClothes();
+        fetchWeather();
+        initGoogleCalendar();
+    }, []);
+
+    // ================= GENERATE OUTFIT =================
+    useEffect(() => {
+        if (
+            clothes.length > 0 &&
+            weather &&
+            !outfit &&
+            !hasGenerated.current
+        ) {
+            hasGenerated.current = true;
+            fetchOutfit();
+        }
+    }, [clothes, weather, events]);
+
     return (
         <PageLayout title="Dashboard">
 
             <div className="grid md:grid-cols-3 gap-6">
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <h2 className="text-lg font-medium mb-2">Today's Outfit</h2>
-                    <p className="text-gray-500 text-sm">
-                        AI will recommend an outfit based on weather & events.
-                    </p>
+                {/* ================= OUTFIT ================= */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+                    <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-lg font-semibold">Today's Outfit</h2>
+
+                        <button
+                            onClick={fetchOutfit}
+                            disabled={loading}
+                            className="text-sm text-blue-500 hover:underline disabled:opacity-50"
+                        >
+                            Refresh
+                        </button>
+                    </div>
+
+                    {(!weather || clothes.length === 0) && (
+                        <p className="text-gray-400 text-sm">
+                            Preparing your outfit...
+                        </p>
+                    )}
+
+                    {loading && (
+                        <p className="text-gray-400 text-sm">
+                            Generating outfit...
+                        </p>
+                    )}
+
+                    {!loading && outfit && (
+                        <div className="flex flex-col items-center gap-4">
+
+                            {outfit.outerwear && (
+                                <img src={outfit.outerwear.imageUrl} className="w-20 h-20 rounded-xl shadow" />
+                            )}
+
+                            {outfit.top && (
+                                <img src={outfit.top.imageUrl} className="w-28 h-28 rounded-xl shadow" />
+                            )}
+
+                            {outfit.bottom && (
+                                <img src={outfit.bottom.imageUrl} className="w-28 h-28 rounded-xl shadow" />
+                            )}
+
+                            {outfit.footwear && (
+                                <img src={outfit.footwear.imageUrl} className="w-24 h-24 rounded-xl shadow" />
+                            )}
+
+                            {outfit.accessory && (
+                                <img src={outfit.accessory.imageUrl} className="w-16 h-16 rounded-lg shadow" />
+                            )}
+
+                            <p className="text-xs text-gray-500 text-center max-w-xs">
+                                {outfit.reason}
+                            </p>
+
+                        </div>
+                    )}
+
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <h2 className="text-lg font-medium mb-2">Weather</h2>
-                    <p className="text-gray-500 text-sm">
-                        Real-time weather based suggestions.
-                    </p>
+                {/* ================= WEATHER ================= */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+                    <h2 className="text-lg font-semibold mb-3">Weather</h2>
+
+                    {weather ? (
+                        <>
+                            <p className="text-4xl font-bold">
+                                {Math.round(weather.temperature)}°C
+                            </p>
+                            <p className="text-gray-500 text-sm mt-1">
+                                Wind: {weather.windspeed} km/h
+                            </p>
+                        </>
+                    ) : (
+                        <p className="text-gray-400 text-sm">Loading weather...</p>
+                    )}
+
                 </div>
 
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                    <h2 className="text-lg font-medium mb-2">Upcoming Events</h2>
-                    <p className="text-gray-500 text-sm">
-                        Calendar events influence outfit suggestions.
-                    </p>
+                {/* ================= EVENTS ================= */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border">
+
+                    <h2 className="text-lg font-semibold mb-3">
+                        Upcoming Events
+                    </h2>
+
+                    <div className="space-y-3 text-sm text-gray-600">
+
+                        {events.length === 0 && (
+                            <p className="text-gray-400">No events found</p>
+                        )}
+
+                        {events.map((event, i) => (
+                            <div key={i} className="flex justify-between">
+                                <span>{event.summary}</span>
+                                <span>
+                                    {event.start?.dateTime
+                                        ? new Date(event.start.dateTime).toLocaleTimeString([], {
+                                            hour: "2-digit",
+                                            minute: "2-digit"
+                                        })
+                                        : "All Day"}
+                                </span>
+                            </div>
+                        ))}
+
+                    </div>
+
                 </div>
 
             </div>

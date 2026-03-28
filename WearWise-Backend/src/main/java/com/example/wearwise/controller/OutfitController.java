@@ -5,6 +5,7 @@ import com.example.wearwise.service.OutfitService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/outfits")
@@ -17,6 +18,7 @@ public class OutfitController {
         this.outfitService = outfitService;
     }
 
+    // ================= CRUD =================
     @PostMapping
     public Outfit saveOutfit(@RequestBody Outfit outfit) {
         return outfitService.saveOutfit(outfit);
@@ -30,5 +32,15 @@ public class OutfitController {
     @DeleteMapping("/{id}")
     public void deleteOutfit(@PathVariable Long id) {
         outfitService.deleteOutfit(id);
+    }
+
+    // ================= AI GENERATION =================
+    @PostMapping("/generate")
+    public Map<String, Object> generateOutfit(@RequestBody Map<String, Object> request) {
+
+        double temperature = Double.parseDouble(request.get("temperature").toString());
+        String occasion = request.get("occasion").toString();
+
+        return outfitService.generateOutfitAI(temperature, occasion);
     }
 }

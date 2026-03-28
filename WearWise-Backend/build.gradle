@@ -40,6 +40,8 @@ dependencies {
 
 	// Testing (optional, but usually included)
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
 }
 
 tasks.named('test') {
