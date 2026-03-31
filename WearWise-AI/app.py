@@ -7,12 +7,10 @@ import json
 import os
 
 
-
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 app = FastAPI()
 
-# initialize Gemini client
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 model = "gemini-2.5-flash"
@@ -52,7 +50,6 @@ JSON FORMAT:
 
     text = response.text.strip()
 
-    #  CLEAN RESPONSE (VERY IMPORTANT)
     try:
         data = json.loads(text)
     except:
@@ -60,7 +57,6 @@ JSON FORMAT:
         end = text.rfind("}") + 1
         data = json.loads(text[start:end])
 
-    #  FORCE DEFAULTS (PREVENT FRONTEND BREAK)
     return {
         "category": data.get("category", ""),
         "type": data.get("type", ""),
@@ -71,11 +67,13 @@ JSON FORMAT:
     }
 
 
+# ================= OUTFIT (no prompt) =================
 @app.post("/outfit")
 async def generate_outfit(data: dict = Body(...)):
     items = data.get("items", [])
     temperature = data.get("temperature")
     occasion = data.get("occasion")
+
     prompt = f"""
     You are a professional fashion stylist.
 
@@ -83,7 +81,7 @@ async def generate_outfit(data: dict = Body(...)):
     {items}
 
     Temperature: {temperature}
-O   ccasion: {occasion}
+    Occasion: {occasion}
 
     Task:
     - Choose the BEST possible outfit combination.
@@ -125,6 +123,70 @@ O   ccasion: {occasion}
 
     text = response.text.strip()
     print("AI RAW:", text)
+
+    try:
+        return json.loads(text)
+    except:
+        start = text.find("{")
+        end = text.rfind("}") + 1
+        return json.loads(text[start:end])
+
+
+# ================= OUTFIT (with prompt) =================
+@app.post("/outfit/prompt")
+async def generate_outfit_with_prompt(data: dict = Body(...)):
+    items = data.get("items", [])
+    user_prompt = data.get("prompt", "")
+
+    prompt = f"""
+    You are a professional fashion stylist.
+
+    User wardrobe:
+    {items}
+
+    User request: "{user_prompt}"
+
+    Task:
+    - Carefully read the user's request — it may describe an occasion, vibe, weather, style, or specific items they want to wear.
+    - Choose the BEST outfit from the wardrobe that satisfies the request.
+
+    Rules:
+    - Pick 1 Top (category = Top)
+    - Pick 1 Bottom (category = Bottom)
+    - Pick 1 Footwear (category = Footwear)
+    - Optionally pick:
+      - Outerwear (if weather or style warrants it)
+      - Accessory (if it complements the look)
+
+    - Only choose items from correct categories
+    - Return indexes from the wardrobe list
+    - Prioritize the user's request above all else
+    - If the user mentions specific items (e.g. "my red jacket"), find the closest match in the wardrobe
+
+    IMPORTANT:
+    - You MUST include "reason"
+    - Keep reason to 1–2 short sentences (max 25 words)
+    - Mention how the outfit matches the user's request
+    - Do NOT skip any field
+
+    Return ONLY JSON:
+    {{
+      "top": number,
+      "bottom": number,
+      "footwear": number,
+      "outerwear": number or null,
+      "accessory": number or null,
+      "reason": "short explanation"
+    }}
+    """
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt
+    )
+
+    text = response.text.strip()
+    print("AI PROMPT RAW:", text)
 
     try:
         return json.loads(text)

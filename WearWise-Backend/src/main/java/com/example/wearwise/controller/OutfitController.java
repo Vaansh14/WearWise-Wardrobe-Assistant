@@ -34,13 +34,18 @@ public class OutfitController {
         outfitService.deleteOutfit(id);
     }
 
-    // ================= AI GENERATION =================
+    // ================= AI GENERATION (no prompt) =================
     @PostMapping("/generate")
     public Map<String, Object> generateOutfit(@RequestBody Map<String, Object> request) {
-
         double temperature = Double.parseDouble(request.get("temperature").toString());
         String occasion = request.get("occasion").toString();
-
         return outfitService.generateOutfitAI(temperature, occasion);
+    }
+
+    // ================= AI GENERATION (with prompt) =================
+    @PostMapping("/generate/prompt")
+    public Map<String, Object> generateOutfitWithPrompt(@RequestBody Map<String, Object> request) {
+        String prompt = request.get("prompt").toString();
+        return outfitService.generateOutfitWithPromptAI(prompt);
     }
 }

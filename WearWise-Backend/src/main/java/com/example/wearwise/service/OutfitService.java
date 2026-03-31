@@ -40,62 +40,66 @@ public class OutfitService {
         outfitRepository.deleteById(id);
     }
 
-    // ================= AI OUTFIT =================
+    // ================= AI OUTFIT (no prompt) =================
     public Map<String, Object> generateOutfitAI(double temperature, String occasion) {
-
         try {
             List<Clothing> clothes = clothingRepository.findAll();
 
-            System.out.println("🔥 SERVICE HIT");
+            System.out.println(" SERVICE HIT");
             System.out.println("TEMP: " + temperature);
             System.out.println("CLOTHES SIZE: " + clothes.size());
 
-            // 🔥 Call FastAPI instead of building prompt
             String response = callFastAPI(clothes, temperature, occasion);
 
-            System.out.println("⬅️ FASTAPI RESPONSE: " + response);
+            System.out.println("️ FASTAPI RESPONSE: " + response);
 
             return parseJson(response);
 
         } catch (Exception e) {
             e.printStackTrace();
-
-            Map<String, Object> fallback = new HashMap<>();
-            fallback.put("top", 0);
-            fallback.put("bottom", 1);
-            fallback.put("footwear", 2);
-            fallback.put("outerwear", null);
-            fallback.put("accessory", null);
-            fallback.put("reason", "Fallback outfit");
-
-            return fallback;
+            return fallbackOutfit();
         }
     }
 
-    // ================= AI CALL =================
-    private String callFastAPI(List<Clothing> clothes, double temperature, String occasion) {
+    // ================= AI OUTFIT (with prompt) =================
+    public Map<String, Object> generateOutfitWithPromptAI(String prompt) {
+        try {
+            List<Clothing> clothes = clothingRepository.findAll();
 
+            System.out.println(" PROMPT SERVICE HIT");
+            System.out.println("PROMPT: " + prompt);
+            System.out.println("CLOTHES SIZE: " + clothes.size());
+
+            String response = callFastAPIWithPrompt(clothes, prompt);
+
+            System.out.println("⬅️ FASTAPI PROMPT RESPONSE: " + response);
+
+            return parseJson(response);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return fallbackOutfit();
+        }
+    }
+
+    // ================= FASTAPI CALL (no prompt) =================
+    private String callFastAPI(List<Clothing> clothes, double temperature, String occasion) {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
-            String url = "http://localhost:8000/outfit"; // 🔥 YOUR FASTAPI ENDPOINT
+            String url = "http://localhost:8000/outfit";
 
             Map<String, Object> request = new HashMap<>();
-            request.put("items", clothes);         // 🔥 MUST MATCH FASTAPI
+            request.put("items", clothes);
             request.put("temperature", temperature);
             request.put("occasion", occasion);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            HttpEntity<Map<String, Object>> entity =
-                    new HttpEntity<>(request, headers);
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
 
-            ResponseEntity<String> response = restTemplate.postForEntity(
-                    url,
-                    entity,
-                    String.class
-            );
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
             return response.getBody();
 
@@ -105,18 +109,52 @@ public class OutfitService {
         }
     }
 
+    // ================= FASTAPI CALL (with prompt) =================
+    private String callFastAPIWithPrompt(List<Clothing> clothes, String prompt) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            String url = "http://localhost:8000/outfit/prompt";
+
+            Map<String, Object> request = new HashMap<>();
+            request.put("items", clothes);
+            request.put("prompt", prompt);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+            return response.getBody();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "";
+        }
+    }
+
+    // ================= FALLBACK =================
+    private Map<String, Object> fallbackOutfit() {
+        Map<String, Object> fallback = new HashMap<>();
+        fallback.put("top", 0);
+        fallback.put("bottom", 1);
+        fallback.put("footwear", 2);
+        fallback.put("outerwear", null);
+        fallback.put("accessory", null);
+        fallback.put("reason", "Fallback outfit");
+        return fallback;
+    }
+
     // ================= JSON PARSER =================
     private Map<String, Object> parseJson(String text) throws Exception {
-
         try {
             return objectMapper.readValue(text, Map.class);
         } catch (Exception e) {
-
             int start = text.indexOf("{");
             int end = text.lastIndexOf("}") + 1;
-
             String clean = text.substring(start, end);
-
             return objectMapper.readValue(clean, Map.class);
         }
     }

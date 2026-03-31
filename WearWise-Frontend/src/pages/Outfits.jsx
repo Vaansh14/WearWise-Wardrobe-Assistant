@@ -13,6 +13,8 @@ export default function Outfits() {
     const [savedOutfits, setSavedOutfits] = useState([]);
 
     const [outfitName, setOutfitName] = useState("");
+    const [prompt, setPrompt] = useState("");
+    const [showPromptInput, setShowPromptInput] = useState(false);
 
     const [builder, setBuilder] = useState({
         top: null,
@@ -54,11 +56,7 @@ export default function Outfits() {
 
         if (sourceId === "wardrobe") {
             const item = clothes.find(c => c.id === parseInt(result.draggableId));
-
-            setBuilder(prev => ({
-                ...prev,
-                [destId]: item
-            }));
+            setBuilder(prev => ({ ...prev, [destId]: item }));
         } else {
             setBuilder(prev => {
                 const updated = { ...prev };
@@ -70,11 +68,9 @@ export default function Outfits() {
         }
     };
 
-    // ================= GENERATE =================
+    // ================= GENERATE (no prompt) =================
     const generateOutfit = async () => {
-
         if (!clothes.length) return;
-
         setLoading(true);
 
         try {
@@ -87,22 +83,41 @@ export default function Outfits() {
             const outerwear = ai.outerwear !== null ? clothes[ai.outerwear] : null;
             const accessory = ai.accessory !== null ? clothes[ai.accessory] : null;
 
-            if (!top || !bottom || !footwear) {
-                throw new Error("Invalid AI response");
-            }
+            if (!top || !bottom || !footwear) throw new Error("Invalid AI response");
 
-            setOutfit({
-                top,
-                bottom,
-                footwear,
-                outerwear,
-                accessory,
-                reason: ai.reason
-            });
+            setOutfit({ top, bottom, footwear, outerwear, accessory, reason: ai.reason });
 
         } catch (err) {
             console.error("AI error:", err);
             alert("Failed to generate outfit");
+        }
+
+        setLoading(false);
+    };
+
+    // ================= GENERATE WITH PROMPT =================
+    const generateOutfitWithPrompt = async () => {
+        if (!clothes.length || !prompt.trim()) return;
+        setLoading(true);
+
+        try {
+            const res = await API.post("/api/outfits/generate/prompt", { prompt });
+            const ai = res.data;
+
+            const top = clothes[ai.top];
+            const bottom = clothes[ai.bottom];
+            const footwear = clothes[ai.footwear];
+            const outerwear = ai.outerwear !== null ? clothes[ai.outerwear] : null;
+            const accessory = ai.accessory !== null ? clothes[ai.accessory] : null;
+
+            if (!top || !bottom || !footwear) throw new Error("Invalid AI response");
+
+            setOutfit({ top, bottom, footwear, outerwear, accessory, reason: ai.reason });
+            setShowPromptInput(false);
+
+        } catch (err) {
+            console.error("Prompt AI error:", err);
+            alert("Failed to generate outfit from prompt");
         }
 
         setLoading(false);
@@ -115,19 +130,16 @@ export default function Outfits() {
 
             if (view === "generate") {
                 if (!outfit) return;
-
                 top = outfit.top;
                 bottom = outfit.bottom;
                 footwear = outfit.footwear;
                 outerwear = outfit.outerwear;
                 accessory = outfit.accessory;
-
             } else {
                 if (!builder.top || !builder.bottom || !builder.footwear) {
                     alert("Complete the outfit first!");
                     return;
                 }
-
                 top = builder.top;
                 bottom = builder.bottom;
                 footwear = builder.footwear;
@@ -147,13 +159,7 @@ export default function Outfits() {
             alert("Outfit saved! ✅");
 
             setOutfitName("");
-            setBuilder({
-                top: null,
-                bottom: null,
-                footwear: null,
-                outerwear: null,
-                accessory: null
-            });
+            setBuilder({ top: null, bottom: null, footwear: null, outerwear: null, accessory: null });
 
             fetchSavedOutfits();
 
@@ -179,11 +185,9 @@ export default function Outfits() {
                 <button onClick={() => setView("generate")} className={`px-4 py-2 rounded-lg ${view === "generate" ? "bg-black text-white" : "bg-gray-100"}`}>
                     Generate
                 </button>
-
                 <button onClick={() => setView("build")} className={`px-4 py-2 rounded-lg ${view === "build" ? "bg-black text-white" : "bg-gray-100"}`}>
                     Build Outfit
                 </button>
-
                 <button onClick={() => setView("saved")} className={`px-4 py-2 rounded-lg ${view === "saved" ? "bg-black text-white" : "bg-gray-100"}`}>
                     Saved
                 </button>
@@ -192,13 +196,48 @@ export default function Outfits() {
             {/* ================= GENERATE ================= */}
             {view === "generate" && (
                 <>
-                    <div className="flex justify-center mb-6">
-                        <button
-                            onClick={generateOutfit}
-                            className="bg-blue-500 text-white px-6 py-2 rounded-xl"
-                        >
-                            {loading ? "Thinking..." : "Generate Smart Outfit ✨"}
-                        </button>
+                    {/* Two generation buttons */}
+                    <div className="flex flex-col items-center gap-4 mb-6">
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={generateOutfit}
+                                disabled={loading}
+                                className="bg-blue-500 text-white px-6 py-2 rounded-xl disabled:opacity-50"
+                            >
+                                {loading && !showPromptInput ? "Thinking..." : "Generate Smart Outfit ✨"}
+                            </button>
+
+                            <button
+                                onClick={() => setShowPromptInput(prev => !prev)}
+                                disabled={loading}
+                                className="bg-purple-500 text-white px-6 py-2 rounded-xl disabled:opacity-50"
+                            >
+                                Generate with Prompt 💬
+                            </button>
+                        </div>
+
+                        {/* Prompt input — shown when toggled */}
+                        {showPromptInput && (
+                            <div className="flex gap-2 w-full max-w-lg">
+                                <input
+                                    type="text"
+                                    value={prompt}
+                                    onChange={(e) => setPrompt(e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && generateOutfitWithPrompt()}
+                                    placeholder='e.g. "casual streetwear for cold weather using my red jacket"'
+                                    className="flex-1 border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
+                                />
+                                <button
+                                    onClick={generateOutfitWithPrompt}
+                                    disabled={loading || !prompt.trim()}
+                                    className="bg-purple-500 text-white px-4 py-2 rounded-xl text-sm disabled:opacity-50"
+                                >
+                                    {loading ? "Thinking..." : "Go"}
+                                </button>
+                            </div>
+                        )}
+
                     </div>
 
                     {outfit && (
@@ -209,9 +248,7 @@ export default function Outfits() {
                             )}
 
                             <img src={outfit.top.imageUrl} className="w-44 h-44 rounded-2xl shadow" />
-
                             <img src={outfit.bottom.imageUrl} className="w-44 h-44 rounded-2xl shadow" />
-
                             <img src={outfit.footwear.imageUrl} className="w-40 h-40 rounded-2xl shadow" />
 
                             {outfit.accessory && (
@@ -219,15 +256,12 @@ export default function Outfits() {
                             )}
 
                             <div className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 px-5 py-4 rounded-2xl shadow-sm max-w-md text-center">
-
                                 <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">
                                     AI Stylist Insight
                                 </p>
-
                                 <p className="text-gray-800 text-sm leading-relaxed font-medium">
                                     {outfit.reason}
                                 </p>
-
                             </div>
 
                             <input
@@ -299,10 +333,7 @@ export default function Outfits() {
                                             className="w-44 h-44 border-2 border-dashed rounded-2xl flex items-center justify-center"
                                         >
                                             {builder[key] ? (
-                                                <img
-                                                    src={builder[key].imageUrl}
-                                                    className="w-full h-full object-cover rounded-2xl"
-                                                />
+                                                <img src={builder[key].imageUrl} className="w-full h-full object-cover rounded-2xl" />
                                             ) : (
                                                 <p className="text-gray-400">{label}</p>
                                             )}
@@ -322,7 +353,6 @@ export default function Outfits() {
                             value={outfitName}
                             onChange={(e) => setOutfitName(e.target.value)}
                         />
-
                         <button onClick={saveOutfit} className="bg-green-500 text-white px-6 py-2 rounded-xl">
                             Save Outfit 💾
                         </button>
@@ -358,10 +388,7 @@ export default function Outfits() {
                                     {outfit.name || `Outfit #${outfit.id}`}
                                 </p>
 
-                                <button
-                                    onClick={() => deleteOutfit(outfit.id)}
-                                    className="mt-3 text-red-500"
-                                >
+                                <button onClick={() => deleteOutfit(outfit.id)} className="mt-3 text-red-500">
                                     Delete
                                 </button>
 
