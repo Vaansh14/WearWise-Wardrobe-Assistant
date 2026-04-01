@@ -156,7 +156,7 @@ export default function Outfits() {
                 name: outfitName
             });
 
-            alert("Outfit saved! ✅");
+            alert("Outfit saved! ");
 
             setOutfitName("");
             setBuilder({ top: null, bottom: null, footwear: null, outerwear: null, accessory: null });

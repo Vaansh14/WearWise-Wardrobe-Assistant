@@ -10,7 +10,7 @@ export default function ClothingCard({ item, onDelete, onEdit }) {
                     className="h-64 w-full object-cover transition duration-300 group-hover:scale-105"
                 />
 
-                {/* 🔥 HOVER OVERLAY */}
+                {/*  HOVER OVERLAY */}
                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
 
                     <button

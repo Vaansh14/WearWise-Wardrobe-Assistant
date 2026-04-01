@@ -1,5 +1,6 @@
 package com.example.wearwise.service;
 
+
 import org.springframework.http.*;
 import org.springframework.web.client.RestTemplate;
 import com.example.wearwise.model.Clothing;
@@ -32,8 +33,8 @@ public class OutfitService {
         return outfitRepository.save(outfit);
     }
 
-    public List<Outfit> getAllOutfits() {
-        return outfitRepository.findAll();
+    public List<Outfit> getAllOutfits(Long userId) {
+        return outfitRepository.findByUserId(userId);
     }
 
     public void deleteOutfit(Long id) {
@@ -41,17 +42,19 @@ public class OutfitService {
     }
 
     // ================= AI OUTFIT (no prompt) =================
-    public Map<String, Object> generateOutfitAI(double temperature, String occasion) {
+    public Map<String, Object> generateOutfitAI(Long userId, double temperature, String occasion, List<String> events) {
         try {
-            List<Clothing> clothes = clothingRepository.findAll();
+            List<Clothing> clothes = clothingRepository.findByUserId(userId);
 
             System.out.println(" SERVICE HIT");
+            System.out.println("USER: " + userId);
             System.out.println("TEMP: " + temperature);
+            System.out.println("EVENTS: " + events);
             System.out.println("CLOTHES SIZE: " + clothes.size());
 
-            String response = callFastAPI(clothes, temperature, occasion);
+            String response = callFastAPI(clothes, temperature, occasion, events);
 
-            System.out.println("️ FASTAPI RESPONSE: " + response);
+            System.out.println("⬅️ FASTAPI RESPONSE: " + response);
 
             return parseJson(response);
 
@@ -62,11 +65,12 @@ public class OutfitService {
     }
 
     // ================= AI OUTFIT (with prompt) =================
-    public Map<String, Object> generateOutfitWithPromptAI(String prompt) {
+    public Map<String, Object> generateOutfitWithPromptAI(Long userId, String prompt) {
         try {
-            List<Clothing> clothes = clothingRepository.findAll();
+            List<Clothing> clothes = clothingRepository.findByUserId(userId);
 
-            System.out.println(" PROMPT SERVICE HIT");
+            System.out.println("🔥 PROMPT SERVICE HIT");
+            System.out.println("USER: " + userId);
             System.out.println("PROMPT: " + prompt);
             System.out.println("CLOTHES SIZE: " + clothes.size());
 
@@ -83,7 +87,7 @@ public class OutfitService {
     }
 
     // ================= FASTAPI CALL (no prompt) =================
-    private String callFastAPI(List<Clothing> clothes, double temperature, String occasion) {
+    private String callFastAPI(List<Clothing> clothes, double temperature, String occasion, List<String> events) {
         try {
             RestTemplate restTemplate = new RestTemplate();
 
@@ -93,6 +97,7 @@ public class OutfitService {
             request.put("items", clothes);
             request.put("temperature", temperature);
             request.put("occasion", occasion);
+            request.put("events", events);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);

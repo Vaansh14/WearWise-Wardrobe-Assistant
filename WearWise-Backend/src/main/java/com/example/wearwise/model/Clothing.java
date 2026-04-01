@@ -21,6 +21,8 @@ public class Clothing {
 
     private String season;
 
+    private Long userId;
+
     public Clothing() {}
 
     public Long getId() {
@@ -70,4 +72,7 @@ public class Clothing {
     public void setType(String type) {
         this.type = type;
     }
+
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
 }

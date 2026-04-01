@@ -37,7 +37,7 @@ export default function Wardrobe() {
         }
     };
 
-    // 🔥 AI ANALYSIS (UPDATED)
+    //  AI ANALYSIS (UPDATED)
     const handleUpload = async (e) => {
 
         const file = e.target.files[0];
@@ -96,7 +96,7 @@ export default function Wardrobe() {
         });
     };
 
-    // 🔥 SAVE / UPDATE
+    //  SAVE / UPDATE
     const addClothing = async () => {
 
         setMode("saving");
@@ -121,7 +121,7 @@ export default function Wardrobe() {
                 data.append("file", image);
                 data.append("imageUrl", imageUrl);
 
-                // 🔥 NEW FIELDS
+                //  NEW FIELDS
                 Object.keys(formData).forEach(key => {
                     data.append(key, formData[key]);
                 });

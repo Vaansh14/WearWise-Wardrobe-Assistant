@@ -73,6 +73,15 @@ async def generate_outfit(data: dict = Body(...)):
     items = data.get("items", [])
     temperature = data.get("temperature")
     occasion = data.get("occasion")
+    events = data.get("events", [])
+
+    # Build calendar context only if events are provided
+    if events:
+        events_block = "Today's Calendar Events:\n" + "\n".join(f"    - {e}" for e in events)
+        events_instruction = "Consider the user's schedule when picking the outfit. Prioritize the most important or formal event of the day."
+    else:
+        events_block = "No calendar connected — ignore events."
+        events_instruction = ""
 
     prompt = f"""
     You are a professional fashion stylist.
@@ -83,8 +92,11 @@ async def generate_outfit(data: dict = Body(...)):
     Temperature: {temperature}
     Occasion: {occasion}
 
+    {events_block}
+
     Task:
     - Choose the BEST possible outfit combination.
+    {events_instruction}
 
     Rules:
     - Pick 1 Top (category = Top)
@@ -101,6 +113,7 @@ async def generate_outfit(data: dict = Body(...)):
     IMPORTANT:
     - You MUST include "reason"
     - Keep reason to 1–2 short sentences (max 25 words)
+    - If calendar events were provided, mention how the outfit suits the schedule
     - Do NOT skip any field
 
     Return ONLY JSON:

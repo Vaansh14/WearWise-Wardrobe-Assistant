@@ -4,6 +4,7 @@ package com.example.wearwise.controller;
 
 import com.example.wearwise.model.Clothing;
 import com.example.wearwise.service.ClothingService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,7 +14,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/clothing")
-@CrossOrigin(origins = "http://localhost:5173")
 public class ClothingController {
 
     private final ClothingService clothingService;
@@ -22,9 +22,14 @@ public class ClothingController {
         this.clothingService = clothingService;
     }
 
+    private Long getUserId(HttpServletRequest request) {
+        return (Long) request.getAttribute("userId");
+    }
+
     //  SAVE (NO AI HERE)
     @PostMapping("/upload")
     public Clothing uploadClothing(
+            HttpServletRequest request,
             @RequestParam("file") MultipartFile file,
             @RequestParam("imageUrl") String imageUrl,
             @RequestParam("category") String category,
@@ -39,6 +44,7 @@ public class ClothingController {
         clothing.setColor(color);
         clothing.setType(type);
         clothing.setSeason(season);
+        clothing.setUserId(getUserId(request));
 
         return clothingService.saveClothingDirect(clothing);
     }
@@ -50,8 +56,8 @@ public class ClothingController {
     }
 
     @GetMapping
-    public List<Clothing> getAllClothing() {
-        return clothingService.getAllClothes();
+    public List<Clothing> getAllClothing(HttpServletRequest request) {
+        return clothingService.getAllClothes(getUserId(request));
     }
 
     @DeleteMapping("/{id}")
@@ -65,8 +71,8 @@ public class ClothingController {
     }
 
     @PostMapping("/outfit")
-    public Map<String, Object> generateOutfit() {
-        List<Clothing> clothes = clothingService.getAllClothes();
+    public Map<String, Object> generateOutfit(HttpServletRequest request) {
+        List<Clothing> clothes = clothingService.getAllClothes(getUserId(request));
         return clothingService.generateOutfit(clothes);
     }
 }

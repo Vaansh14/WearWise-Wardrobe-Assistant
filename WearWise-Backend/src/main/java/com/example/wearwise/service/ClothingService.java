@@ -24,13 +24,13 @@ public class ClothingService {
         this.clothingRepository = clothingRepository;
     }
 
-    //  NEW: Save directly (NO AI)
+    //  Save directly (NO AI)
     public Clothing saveClothingDirect(Clothing clothing) {
         return clothingRepository.save(clothing);
     }
 
-    public List<Clothing> getAllClothes() {
-        return clothingRepository.findAll();
+    public List<Clothing> getAllClothes(Long userId) {
+        return clothingRepository.findByUserId(userId);
     }
 
     public void deleteClothing(Long id) {

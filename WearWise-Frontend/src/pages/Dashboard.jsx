@@ -1,14 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import PageLayout from "../layouts/PageLayout";
 import API from "../services/api";
+import { useCalendar } from "../context/CalendarContext";
 
 export default function Dashboard() {
 
     const [clothes, setClothes] = useState([]);
     const [outfit, setOutfit] = useState(null);
     const [weather, setWeather] = useState(null);
-    const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(false);
+
+    // All calendar state + actions come from the isolated CalendarContext
+    const { isConnected, events, connectCalendar, disconnectCalendar } = useCalendar();
 
     const hasGenerated = useRef(false);
 
@@ -43,89 +46,31 @@ export default function Dashboard() {
         }
     };
 
-    // ================= FETCH CALENDAR EVENTS =================
-    const fetchCalendarEvents = async (token) => {
-        const res = await fetch(
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        const data = await res.json();
-
-        // Token was rejected/expired — clear it so next visit re-authenticates
-        if (data.error) {
-            localStorage.removeItem("gapi_access_token");
-            localStorage.removeItem("gapi_token_expiry");
-            return;
-        }
-
-        const now = new Date();
-
-        // Filter upcoming only
-        const upcoming = (data.items || [])
-            .filter(event => new Date(event.start?.dateTime || event.start?.date) >= now)
-            .sort((a, b) =>
-                new Date(a.start?.dateTime || a.start?.date) -
-                new Date(b.start?.dateTime || b.start?.date)
-            );
-
-        setEvents(upcoming);
-    };
-
-    // ================= GOOGLE CALENDAR =================
-    const initGoogleCalendar = async () => {
-        try {
-            const existingToken = localStorage.getItem("gapi_access_token");
-            const tokenExpiry = localStorage.getItem("gapi_token_expiry");
-            const isValid = existingToken && tokenExpiry && Date.now() < Number(tokenExpiry);
-
-            if (isValid) {
-                // Token still valid — fetch calendar silently, no popup
-                await fetchCalendarEvents(existingToken);
-                return;
-            }
-
-            // No valid token — prompt login once
-            const tokenClient = window.google.accounts.oauth2.initTokenClient({
-                client_id: "766920400079-abetaslvqkdf27o0tdo45j0vv2snlsfe.apps.googleusercontent.com",
-                scope: "https://www.googleapis.com/auth/calendar.readonly",
-                callback: async (tokenResponse) => {
-                    // Save token + expiry (Google access tokens last ~1 hour)
-                    localStorage.setItem("gapi_access_token", tokenResponse.access_token);
-                    localStorage.setItem("gapi_token_expiry", Date.now() + tokenResponse.expires_in * 1000);
-
-                    await fetchCalendarEvents(tokenResponse.access_token);
-                }
-            });
-
-            tokenClient.requestAccessToken();
-
-        } catch (err) {
-            console.error("GOOGLE ERROR:", err);
-        }
-    };
-
     // ================= EVENT → OCCASION =================
     const getOccasionFromEvent = (name) => {
         const text = name.toLowerCase();
-
         if (text.includes("gym")) return "Gym";
         if (text.includes("meeting") || text.includes("lecture")) return "Formal";
         if (text.includes("party") || text.includes("dinner")) return "Party";
-
         return "Casual";
     };
 
     // ================= FETCH OUTFIT =================
     const fetchOutfit = async () => {
-
         if (!clothes.length || !weather || loading) return;
 
         const firstEvent = events[0];
-
         const occasion = firstEvent
             ? getOccasionFromEvent(firstEvent.summary)
             : "Casual";
+
+        // Only pass calendar events to AI if the user actually connected their calendar
+        const todayEvents = isConnected ? events.map(e => {
+            const time = e.start?.dateTime
+                ? new Date(e.start.dateTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : "All Day";
+            return `${e.summary} at ${time}`;
+        }) : [];
 
         setLoading(true);
 
@@ -133,7 +78,8 @@ export default function Dashboard() {
             const res = await API.post("/api/outfits/generate", {
                 temperature: weather.temperature,
                 windspeed: weather.windspeed,
-                occasion
+                occasion,
+                ...(todayEvents.length > 0 && { events: todayEvents })
             });
 
             const ai = res.data;
@@ -160,18 +106,9 @@ export default function Dashboard() {
     useEffect(() => {
         fetchClothes();
         fetchWeather();
-
-        // Only silently fetch if we already have a valid token — no popup on load
-        const existingToken = localStorage.getItem("gapi_access_token");
-        const tokenExpiry = localStorage.getItem("gapi_token_expiry");
-        const isValid = existingToken && tokenExpiry && Date.now() < Number(tokenExpiry);
-
-        if (isValid) {
-            fetchCalendarEvents(existingToken);
-        }
     }, []);
 
-    // ================= GENERATE OUTFIT =================
+    // ================= AUTO-GENERATE OUTFIT ONCE DATA IS READY =================
     useEffect(() => {
         if (
             clothes.length > 0 &&
@@ -274,20 +211,16 @@ export default function Dashboard() {
                     <div className="flex justify-between items-center mb-3">
                         <h2 className="text-lg font-semibold">Upcoming Events</h2>
 
-                        {localStorage.getItem("gapi_access_token") && Date.now() < Number(localStorage.getItem("gapi_token_expiry")) ? (
+                        {isConnected ? (
                             <button
-                                onClick={() => {
-                                    localStorage.removeItem("gapi_access_token");
-                                    localStorage.removeItem("gapi_token_expiry");
-                                    setEvents([]);
-                                }}
+                                onClick={disconnectCalendar}
                                 className="text-xs text-red-400 hover:underline"
                             >
                                 Disconnect
                             </button>
                         ) : (
                             <button
-                                onClick={initGoogleCalendar}
+                                onClick={connectCalendar}
                                 className="text-xs text-blue-500 hover:underline"
                             >
                                 Connect Calendar
@@ -297,11 +230,11 @@ export default function Dashboard() {
 
                     <div className="space-y-3 text-sm text-gray-600">
 
-                        {!localStorage.getItem("gapi_access_token") && (
+                        {!isConnected && (
                             <p className="text-gray-400">Connect your calendar to see events</p>
                         )}
 
-                        {localStorage.getItem("gapi_access_token") && events.length === 0 && (
+                        {isConnected && events.length === 0 && (
                             <p className="text-gray-400">No upcoming events</p>
                         )}
 

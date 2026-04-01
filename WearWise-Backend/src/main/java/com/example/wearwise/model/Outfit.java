@@ -1,5 +1,6 @@
 package com.example.wearwise.model;
 
+
 import jakarta.persistence.*;
 
 @Entity
@@ -18,6 +19,8 @@ public class Outfit {
 
     private String name;
 
+    private Long userId;
+
     public Outfit() {}
 
     // ===== GETTERS =====
@@ -30,6 +33,7 @@ public class Outfit {
     public Long getAccessoryId() { return accessoryId; }
 
     public String getName() { return name; }
+    public Long getUserId() { return userId; }
 
     // ===== SETTERS =====
     public void setId(Long id) { this.id = id; }
@@ -41,4 +45,5 @@ public class Outfit {
     public void setAccessoryId(Long accessoryId) { this.accessoryId = accessoryId; }
 
     public void setName(String name) { this.name = name; }
+    public void setUserId(Long userId) { this.userId = userId; }
 }
