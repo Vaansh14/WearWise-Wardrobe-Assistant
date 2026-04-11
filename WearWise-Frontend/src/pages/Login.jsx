@@ -1,11 +1,35 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Shirt, Mail, Lock, ArrowRight } from "lucide-react";
+import {
+    Shirt, Mail, Lock, ArrowRight, Eye, EyeOff,
+    Sparkles, CalendarDays, CloudSun
+} from "lucide-react";
+
+const BRAND_EMOJIS = ["👕", "👖", "👗", "👟", "🧥", "👒", "👔", "🧣"];
+
+const FEATURES = [
+    {
+        icon: <Sparkles size={18} />,
+        title: "AI Outfit Generation",
+        desc: "Smart outfit suggestions powered by AI"
+    },
+    {
+        icon: <CalendarDays size={18} />,
+        title: "Calendar-aware Styling",
+        desc: "Dress right for your daily schedule"
+    },
+    {
+        icon: <CloudSun size={18} />,
+        title: "Weather-based Picks",
+        desc: "Outfits tailored to live weather"
+    }
+];
 
 export default function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -16,7 +40,6 @@ export default function Login() {
         e.preventDefault();
         setError("");
         setLoading(true);
-
         try {
             await login(email, password);
             navigate("/");
@@ -28,105 +51,159 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        <div className="min-h-screen flex">
+            {/* LEFT — Brand Panel */}
+            <div className="hidden lg:flex w-[52%] relative overflow-hidden bg-gradient-to-br from-violet-700 via-purple-700 to-indigo-900 flex-col items-center justify-center p-14">
 
-            {/* Background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-800" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(120,80,255,0.3),transparent_50%)]" />
+                {/* Glow blobs */}
+                <div className="absolute top-0 left-0 w-[28rem] h-[28rem] bg-white/5 rounded-full -translate-x-1/2 -translate-y-1/2 blur-3xl" />
+                <div className="absolute bottom-0 right-0 w-72 h-72 bg-purple-400/10 rounded-full translate-x-1/3 translate-y-1/3 blur-3xl" />
 
-            {/* Floating shapes */}
-            <div className="absolute top-20 left-20 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-pulse" />
-            <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-300/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: "1s" }} />
-
-            {/* Card */}
-            <div className="relative z-10 w-full max-w-md mx-4">
-
-                <div className="bg-white/10 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/20">
-
-                    {/* Logo */}
-                    <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 rounded-2xl mb-4 backdrop-blur-sm">
-                            <Shirt className="text-white" size={28} />
-                        </div>
-                        <h1 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h1>
-                        <p className="text-white/60 mt-2">Sign in to your WearWise account</p>
-                    </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="bg-red-500/20 border border-red-400/30 text-red-100 rounded-xl px-4 py-3 mb-6 text-sm text-center backdrop-blur-sm">
-                            {error}
-                        </div>
-                    )}
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit} className="space-y-5">
-
-                        <div>
-                            <label className="text-white/80 text-sm font-medium mb-2 block">Email</label>
-                            <div className="relative">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                                <input
-                                    id="login-email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="you@example.com"
-                                    required
-                                    className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent transition backdrop-blur-sm"
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className="text-white/80 text-sm font-medium mb-2 block">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40" size={18} />
-                                <input
-                                    id="login-password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    required
-                                    className="w-full bg-white/10 border border-white/20 rounded-xl py-3 pl-12 pr-4 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/40 focus:border-transparent transition backdrop-blur-sm"
-                                />
-                            </div>
-                        </div>
-
-                        <button
-                            id="login-submit"
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-white text-purple-700 font-semibold py-3 rounded-xl hover:bg-white/90 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-900/30"
+                {/* Floating emojis */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none select-none">
+                    {BRAND_EMOJIS.map((emoji, i) => (
+                        <span
+                            key={i}
+                            className="absolute text-4xl auth-float"
+                            style={{
+                                top: `${8 + i * 11}%`,
+                                left: `${4 + ((i * 19) % 80)}%`,
+                                animationDelay: `${i * 0.45}s`,
+                                animationDuration: `${3 + (i % 3) * 0.8}s`,
+                                opacity: 0.08
+                            }}
                         >
-                            {loading ? (
-                                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-700" />
-                            ) : (
-                                <>
-                                    Sign In
-                                    <ArrowRight size={18} />
-                                </>
-                            )}
-                        </button>
-
-                    </form>
-
-                    {/* Divider */}
-                    <div className="mt-8 text-center">
-                        <p className="text-white/50 text-sm">
-                            Don't have an account?{" "}
-                            <Link to="/register" className="text-white font-semibold hover:underline">
-                                Create one
-                            </Link>
-                        </p>
-                    </div>
-
+                            {emoji}
+                        </span>
+                    ))}
                 </div>
 
+                <div className="relative text-center max-w-sm">
+                    {/* Logo */}
+                    <div className="inline-flex items-center justify-center w-[5.5rem] h-[5.5rem] bg-white/15 rounded-3xl mb-7 backdrop-blur-sm border border-white/20 shadow-2xl">
+                        <Shirt size={38} className="text-white" />
+                    </div>
+
+                    <h1 className="text-5xl font-black text-white tracking-tight mb-3">
+                        WearWise
+                    </h1>
+
+                    <p className="text-white/60 text-base leading-relaxed">
+                        Your AI-powered wardrobe assistant.
+                        <br />
+                        Dress smarter every single day.
+                    </p>
+
+                    {/* IMPROVED FEATURE CARDS */}
+                    <div className="flex flex-col gap-4 mt-10">
+                        {FEATURES.map((f, i) => (
+                            <div
+                                key={i}
+                                className="group flex items-start gap-4 bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl px-5 py-4 transition-all duration-300 hover:bg-white/15 hover:scale-[1.03] hover:shadow-xl"
+                            >
+                                {/* Icon */}
+                                <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-white/20 text-white group-hover:scale-110 transition">
+                                    {f.icon}
+                                </div>
+
+                                {/* Text */}
+                                <div className="text-left">
+                                    <p className="text-white font-semibold text-sm">
+                                        {f.title}
+                                    </p>
+                                    <p className="text-white/50 text-xs mt-0.5">
+                                        {f.desc}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <p className="absolute bottom-7 text-white/25 text-xs italic text-center px-10">
+                    "Fashion is the armor to survive the reality of everyday life."
+                </p>
             </div>
 
+            {/* RIGHT — Form Panel */}
+            <div className="flex-1 flex items-center justify-center bg-gray-50 p-6">
+                <div className="w-full max-w-md">
+                    <div className="bg-white rounded-3xl shadow-xl shadow-gray-200/80 p-8 border border-gray-100">
+
+                        <div className="mb-7">
+                            <h2 className="text-3xl font-black text-gray-900">
+                                Welcome back
+                            </h2>
+                            <p className="text-gray-400 mt-1.5 text-sm">
+                                Sign in to your WearWise account
+                            </p>
+                        </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-600 rounded-2xl px-4 py-3 mb-5 text-sm">
+                                ⚠ {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div>
+                                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                                    Email
+                                </label>
+                                <div className="relative">
+                                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={e => setEmail(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3.5 pl-11 pr-4 text-sm focus:ring-2 focus:ring-violet-400"
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-sm font-semibold text-gray-700 mb-2 block">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={e => setPassword(e.target.value)}
+                                        className="w-full bg-gray-50 border border-gray-200 rounded-2xl py-3.5 pl-11 pr-12 text-sm"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(p => !p)}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+                                    >
+                                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 text-white py-3.5 rounded-2xl flex justify-center items-center gap-2"
+                            >
+                                {loading ? "Loading..." : <>Sign In <ArrowRight size={16} /></>}
+                            </button>
+                        </form>
+
+                        <div className="text-center mt-6 text-sm">
+                            New here?{" "}
+                            <Link to="/register" className="text-violet-600 font-semibold">
+                                Create account
+                            </Link>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

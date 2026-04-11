@@ -54,7 +54,7 @@ public class OutfitService {
 
             String response = callFastAPI(clothes, temperature, occasion, events);
 
-            System.out.println("⬅️ FASTAPI RESPONSE: " + response);
+            System.out.println("️ FASTAPI RESPONSE: " + response);
 
             return parseJson(response);
 
