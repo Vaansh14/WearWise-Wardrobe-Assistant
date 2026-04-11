@@ -85,11 +85,11 @@ export default function Dashboard() {
             const ai = res.data;
 
             const mapped = {
-                top: clothes[ai.top],
-                bottom: clothes[ai.bottom],
-                footwear: clothes[ai.footwear],
-                outerwear: ai.outerwear !== null ? clothes[ai.outerwear] : null,
-                accessory: ai.accessory !== null ? clothes[ai.accessory] : null,
+                top: clothes.find(c => c.id === ai.top) ?? null,
+                bottom: clothes.find(c => c.id === ai.bottom) ?? null,
+                footwear: clothes.find(c => c.id === ai.footwear) ?? null,
+                outerwear: ai.outerwear != null ? (clothes.find(c => c.id === ai.outerwear) ?? null) : null,
+                accessory: ai.accessory != null ? (clothes.find(c => c.id === ai.accessory) ?? null) : null,
                 reason: ai.reason
             };
 

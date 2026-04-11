@@ -48,7 +48,7 @@ public class ClothingService {
     }
 
     //  AI ONLY (no saving)
-    public Map<String, String> analyzeImage(byte[] fileBytes) {
+    public Map<String, Object> analyzeImage(byte[] fileBytes) {
 
         RestTemplate restTemplate = new RestTemplate();
 

@@ -2,7 +2,10 @@ package com.example.wearwise.service;
 
 
 import org.springframework.http.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 import com.example.wearwise.model.Clothing;
 import com.example.wearwise.model.Outfit;
 import com.example.wearwise.repository.ClothingRepository;
@@ -28,7 +31,7 @@ public class OutfitService {
         this.objectMapper = new ObjectMapper();
     }
 
-    // ================= CRUD =================
+    // CRUD
     public Outfit saveOutfit(Outfit outfit) {
         return outfitRepository.save(outfit);
     }
@@ -41,12 +44,11 @@ public class OutfitService {
         outfitRepository.deleteById(id);
     }
 
-    // ================= AI OUTFIT (no prompt) =================
+    //  AI OUTFIT (no prompt)
     public Map<String, Object> generateOutfitAI(Long userId, double temperature, String occasion, List<String> events) {
+        List<Clothing> clothes = clothingRepository.findByUserId(userId);
         try {
-            List<Clothing> clothes = clothingRepository.findByUserId(userId);
-
-            System.out.println(" SERVICE HIT");
+            System.out.println("🔥 SERVICE HIT");
             System.out.println("USER: " + userId);
             System.out.println("TEMP: " + temperature);
             System.out.println("EVENTS: " + events);
@@ -54,39 +56,54 @@ public class OutfitService {
 
             String response = callFastAPI(clothes, temperature, occasion, events);
 
-            System.out.println("️ FASTAPI RESPONSE: " + response);
+            System.out.println("⬅️ FASTAPI RESPONSE: " + response);
 
             return parseJson(response);
 
         } catch (Exception e) {
             e.printStackTrace();
-            return fallbackOutfit();
+            return fallbackOutfit(clothes);
         }
     }
 
-    // ================= AI OUTFIT (with prompt) =================
+    //  AI OUTFIT (with prompt)
     public Map<String, Object> generateOutfitWithPromptAI(Long userId, String prompt) {
+        List<Clothing> clothes = clothingRepository.findByUserId(userId);
+
+        System.out.println(" PROMPT SERVICE HIT");
+        System.out.println("USER: " + userId);
+        System.out.println("PROMPT: " + prompt);
+        System.out.println("CLOTHES SIZE: " + clothes.size());
+
         try {
-            List<Clothing> clothes = clothingRepository.findByUserId(userId);
-
-            System.out.println("🔥 PROMPT SERVICE HIT");
-            System.out.println("USER: " + userId);
-            System.out.println("PROMPT: " + prompt);
-            System.out.println("CLOTHES SIZE: " + clothes.size());
-
             String response = callFastAPIWithPrompt(clothes, prompt);
-
             System.out.println("⬅️ FASTAPI PROMPT RESPONSE: " + response);
-
             return parseJson(response);
 
+        } catch (HttpClientErrorException.UnprocessableEntity e) {
+            // FastAPI 422 — prompt is not fashion-related
+            throw new ResponseStatusException(
+                    HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Invalid fashion prompt. Please describe an outfit or style."
+            );
+        } catch (HttpServerErrorException e) {
+            // FastAPI 503 — AI failed after all retries
+            String detail = e.getResponseBodyAsString();
+            System.err.println("⚠️ FastAPI error: " + detail);
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "The AI could not generate a valid outfit. Please try again."
+            );
         } catch (Exception e) {
             e.printStackTrace();
-            return fallbackOutfit();
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Failed to generate outfit. Please try again."
+            );
         }
     }
 
-    // ================= FASTAPI CALL (no prompt) =================
+    //  FASTAPI CALL (no prompt)
     private String callFastAPI(List<Clothing> clothes, double temperature, String occasion, List<String> events) {
         try {
             RestTemplate restTemplate = new RestTemplate();
@@ -114,45 +131,54 @@ public class OutfitService {
         }
     }
 
-    // ================= FASTAPI CALL (with prompt) =================
+    //  FASTAPI CALL (with prompt)
+
     private String callFastAPIWithPrompt(List<Clothing> clothes, String prompt) {
-        try {
-            RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate();
 
-            String url = "http://localhost:8000/outfit/prompt";
+        String url = "http://localhost:8000/outfit/prompt";
 
-            Map<String, Object> request = new HashMap<>();
-            request.put("items", clothes);
-            request.put("prompt", prompt);
+        Map<String, Object> request = new HashMap<>();
+        request.put("items", clothes);
+        request.put("prompt", prompt);
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
 
-            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
+        HttpEntity<Map<String, Object>> entity = new HttpEntity<>(request, headers);
 
-            ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
 
-            return response.getBody();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "";
-        }
+        return response.getBody();
     }
 
-    // ================= FALLBACK =================
-    private Map<String, Object> fallbackOutfit() {
+    //  FALLBACK
+    private Map<String, Object> fallbackOutfit(List<Clothing> clothes) {
         Map<String, Object> fallback = new HashMap<>();
-        fallback.put("top", 0);
-        fallback.put("bottom", 1);
-        fallback.put("footwear", 2);
+
+        // Pick the first available item per category — return its real database ID
+        Long topId = clothes.stream()
+                .filter(c -> "Top".equals(c.getCategory()))
+                .findFirst().map(Clothing::getId).orElse(null);
+
+        Long bottomId = clothes.stream()
+                .filter(c -> "Bottom".equals(c.getCategory()))
+                .findFirst().map(Clothing::getId).orElse(null);
+
+        Long footwearId = clothes.stream()
+                .filter(c -> "Footwear".equals(c.getCategory()))
+                .findFirst().map(Clothing::getId).orElse(null);
+
+        fallback.put("top",       topId);
+        fallback.put("bottom",    bottomId);
+        fallback.put("footwear",  footwearId);
         fallback.put("outerwear", null);
         fallback.put("accessory", null);
-        fallback.put("reason", "Fallback outfit");
+        fallback.put("reason",    "Here's a simple outfit from your wardrobe.");
         return fallback;
     }
 
-    // ================= JSON PARSER =================
+    //  JSON PARSER
     private Map<String, Object> parseJson(String text) throws Exception {
         try {
             return objectMapper.readValue(text, Map.class);

@@ -23,7 +23,7 @@ public class OutfitController {
         return (Long) request.getAttribute("userId");
     }
 
-    // ================= CRUD =================
+    //  CRUD
     @PostMapping
     public Outfit saveOutfit(HttpServletRequest request, @RequestBody Outfit outfit) {
         outfit.setUserId(getUserId(request));
@@ -40,7 +40,7 @@ public class OutfitController {
         outfitService.deleteOutfit(id);
     }
 
-    // ================= AI GENERATION (no prompt) =================
+    //  AI GENERATION (no prompt)
     @PostMapping("/generate")
     public Map<String, Object> generateOutfit(HttpServletRequest request, @RequestBody Map<String, Object> body) {
         double temperature = Double.parseDouble(body.get("temperature").toString());
@@ -51,7 +51,7 @@ public class OutfitController {
         return outfitService.generateOutfitAI(getUserId(request), temperature, occasion, events);
     }
 
-    // ================= AI GENERATION (with prompt) =================
+    //  AI GENERATION (with prompt)
     @PostMapping("/generate/prompt")
     public Map<String, Object> generateOutfitWithPrompt(HttpServletRequest request, @RequestBody Map<String, Object> body) {
         String prompt = body.get("prompt").toString();

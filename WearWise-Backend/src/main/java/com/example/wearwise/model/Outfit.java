@@ -23,7 +23,7 @@ public class Outfit {
 
     public Outfit() {}
 
-    // ===== GETTERS =====
+    //  GETTERS
     public Long getId() { return id; }
 
     public Long getTopId() { return topId; }
@@ -35,7 +35,7 @@ public class Outfit {
     public String getName() { return name; }
     public Long getUserId() { return userId; }
 
-    // ===== SETTERS =====
+    // SETTERS
     public void setId(Long id) { this.id = id; }
 
     public void setTopId(Long topId) { this.topId = topId; }

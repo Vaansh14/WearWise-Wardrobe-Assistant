@@ -37,13 +37,13 @@ export default function Wardrobe() {
         }
     };
 
-    //  AI ANALYSIS (UPDATED)
+    // 🔥 AI ANALYSIS (with clothing validation)
     const handleUpload = async (e) => {
 
         const file = e.target.files[0];
         if (!file) return;
 
-        setImage(file);
+        setError("");
         setMode("analyzing");
 
         try {
@@ -53,6 +53,16 @@ export default function Wardrobe() {
             const response = await API.post("/api/clothing/analyze", data);
             const ai = response.data;
 
+            // ✅ Image validation guard
+            if (ai.invalid === true) {
+                setError("Please upload a clothing item");
+                setImage(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+                setMode("");
+                return;
+            }
+
+            setImage(file);
             setFormData({
                 category: ai.category || "",
                 type: ai.type || "",
@@ -64,6 +74,7 @@ export default function Wardrobe() {
 
         } catch (error) {
             console.error("AI error:", error);
+            setError("Failed to analyze image. Please try again.");
         }
 
         setMode("");
@@ -157,10 +168,10 @@ export default function Wardrobe() {
 
         const data = new FormData();
         data.append("file", file);
-        data.append("upload_preset", "wearwise");
+        data.append("upload_preset", "stylemate");
 
         const response = await fetch(
-            "https://api.cloudinary.com/v1_1/dadny2h6g/image/upload",
+            "https://api.cloudinary.com/v1_1/dg6wknxgy/image/upload",
             {
                 method: "POST",
                 body: data

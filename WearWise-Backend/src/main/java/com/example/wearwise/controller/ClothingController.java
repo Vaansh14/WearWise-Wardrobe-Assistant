@@ -51,7 +51,7 @@ public class ClothingController {
 
     //  AI ONLY (NO SAVE)
     @PostMapping("/analyze")
-    public Map<String, String> analyzeOnly(@RequestParam("file") MultipartFile file) throws IOException {
+    public Map<String, Object> analyzeOnly(@RequestParam("file") MultipartFile file) throws IOException {
         return clothingService.analyzeImage(file.getBytes());
     }
 
